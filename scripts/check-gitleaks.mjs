@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import console from 'node:console';
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
@@ -30,7 +31,11 @@ try {
   await writeFile(bundle, 'e.key,o=e.childrens;\n');
   assert.equal(scan().status, 0, 'Known bundle expression must be accepted');
   await writeFile(join(root, 'source.js'), 'e.key,o=e.childrens;\n');
-  assert.equal(scan().status, 1, 'Exception must not apply to source files');
+  assert.equal(
+    scan().status,
+    1,
+    'Exception must not apply to unrelated source files',
+  );
   await rm(join(root, 'source.js'));
   await writeFile(
     bundle,

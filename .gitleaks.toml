@@ -1,13 +1,21 @@
-# Keep all default secret rules and scan all Git history, including review Pages.
+# Keep all default rules and scan all Git history, including review Pages.
 [extend]
 useDefault = true
+
+# Gitleaks 8.24.2 extends global regexes/paths but does not inherit stopwords.
+# Retain both built-in global stopwords from that exact pinned version.
+[allowlist]
+stopwords = ["abcdefghijklmnopqrstuvwxyz", "014df517-39d1-4453-b7b3-9930c563627c"]
 
 [[rules]]
 id = "generic-api-key"
 
 [[rules.allowlists]]
-description = "Confirmed false positive: Storybook bundle JavaScript property assignment, not a credential"
+description = "Confirmed Storybook JavaScript expression and its regression fixture, not a credential"
 condition = "AND"
 regexTarget = "secret"
 regexes = ['''^o=e\.childrens$''']
-paths = ['''(?:^|/)(?:storybook|storybook-static)/assets/iframe-[^/]+\.js$''']
+paths = [
+  '''(?:^|/)(?:storybook|storybook-static)/assets/iframe-[^/]+\.js$''',
+  '''^scripts/check-gitleaks\.mjs$''',
+]

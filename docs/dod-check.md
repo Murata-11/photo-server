@@ -100,4 +100,4 @@ Storybookの開発環境の型検査・静的ビルドは独立した `review-bu
 
 CIのKnipが`src/migrate.ts`を未使用と判定したため、バックエンドのサーバーと初期化CLIを明示的なentryとして登録する。ローカルにだけ存在する生成物の影響に依存しない設定にする。
 
-Gitleaksがgh-pages履歴のStorybook生成JavaScriptにある`o=e.childrens`をgeneric-api-keyとして誤検出した。`.gitleaks.toml`で既定ルールを継承し、この式の完全一致とStorybookのiframeバンドルパスの両方に一致する場合だけ除外する。全Git履歴・作業ツリーのスキャンは維持する。`scripts/check-gitleaks.mjs`で、この式がソースファイルでは除外されず、同じバンドルの認証情報テスト値も検出されることを検証する。
+Gitleaksがgh-pages履歴のStorybook生成JavaScriptにある`o=e.childrens`をgeneric-api-keyとして誤検出した。`.gitleaks.toml`で既定ルールを継承し、この式の完全一致とStorybookのiframeバンドルまたは回帰検証スクリプトのパスが両方一致する場合だけ除外する。パス・ルール・コミット全体の除外は行わない。全Git履歴・作業ツリーのスキャンは維持する。`scripts/check-gitleaks.mjs`で、無関係なソースファイルには例外が適用されず、同じバンドルの認証情報テスト値も引き続き検出されることを検証する。
