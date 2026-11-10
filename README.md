@@ -9,6 +9,7 @@ Tailscaleを使い、許可した2人で写真を共有するプライベート�
 - [AGENTS.md](AGENTS.md)：AIエージェント向けの入口
 - [CONTRACT.md](CONTRACT.md)：POとAIの役割、権限、承認ルール
 - [仕様管理](docs/specification-management.md)：Storybook・OpenAPIのSSOTと整合性確認
+- [OpenAPI](api/openapi.yaml)：初期API契約のレビュー案（未承認・未実装）
 - [製品仕様](docs/product.md)：機能案、受け入れ条件、未決事項
 - [開発フロー](docs/workflow.md)：Issue、ブランチ、PR、承認、リリース
 - [システム設計](docs/architecture.md)：構成案と認証・データの境界
@@ -33,3 +34,21 @@ Issueの自動監視やAIの自動起動は未設定です。現時点ではチ�
 現在は文書の差分確認に `git diff --check` を使用できます。これはアプリの動作検証ではありません。
 
 CIは未導入です。実装時に意味のあるテスト・静的解析・ビルドをCIへ追加し、mainの必須チェックに設定します。マージと本番反映は別途POの承認が必要です。
+
+### OpenAPIレビュー案の検証
+
+OpenAPI 3.1.0の構文・参照検証に `openapi-spec-validator==0.7.2` を使用します。
+アプリの依存関係や生成ツールの採用を意味するものではありません。
+
+```sh
+python -m venv work/validation-venv
+work/validation-venv/bin/pip install openapi-spec-validator==0.7.2
+work/validation-venv/bin/python -m openapi_spec_validator api/openapi.yaml
+git diff --check
+```
+
+`work/` は一時環境用で、コミット対象にしません。
+レビューではOpenAPIの `x-pending-decisions` と各操作の説明を確認します。
+認証のカスタム表現は設計上の仮置きであり、クライアント生成前に実方式を確定します。
+今回の検証では構文・参照検証と差分チェックが成功しました。
+サーバー未実装のため、認可・CSRF・永続性・元ファイル一致の動作検証と型生成は未実施です。
