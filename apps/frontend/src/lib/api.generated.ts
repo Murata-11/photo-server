@@ -227,7 +227,7 @@ export interface operations {
         'multipart/form-data': {
           /**
            * Format: binary
-           * @description JPEG/PNG/WebP、10MiB以下。元バイト列を保持。
+           * @description JPEG/PNG/WebP、50MiB以下。元バイト列を保持。
            */
           file: string;
         };

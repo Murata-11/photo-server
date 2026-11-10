@@ -77,9 +77,9 @@ export function createApp(settings: Settings) {
   app.use(
     '/api/*',
     bodyLimit({
-      maxSize: 11 * 1024 * 1024,
+      maxSize: 51 * 1024 * 1024,
       onError: () => {
-        fail(413, '1枚10MB以下の画像を選んでください');
+        fail(413, '1枚50MB以下の画像を選んでください');
       },
     }),
   );
@@ -143,8 +143,8 @@ export function createApp(settings: Settings) {
     if (!(file instanceof File) || [...form.keys()].length !== 1)
       fail(400, '写真を1枚選んでください');
     if (!file.size) fail(422, '空のファイルです');
-    if (file.size > 10 * 1024 * 1024)
-      fail(413, '1枚10MB以下の画像を選んでください');
+    if (file.size > 50 * 1024 * 1024)
+      fail(413, '1枚50MB以下の画像を選んでください');
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type))
       fail(415, 'JPEG・PNG・WebPの画像を選んでください');
     const bytes = Buffer.from(await file.arrayBuffer());

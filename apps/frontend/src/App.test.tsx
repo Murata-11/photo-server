@@ -116,6 +116,20 @@ describe('photo application interactions', () => {
       await screen.findByRole('heading', { name: '新しい旅' }),
     ).toBeTruthy();
   });
+  it('allows a file at the 50MiB limit', async () => {
+    const user = userEvent.setup();
+    await loaded();
+    await user.click(button('写真を追加'));
+    const input = document.querySelector('input[type=file]');
+    if (!(input instanceof HTMLInputElement)) throw new Error('Missing input');
+    const file = new File(['fixture'], 'limit.png', { type: 'image/png' });
+    Object.defineProperty(file, 'size', { value: 50 * 1024 * 1024 });
+    fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() => expect(api.create).toHaveBeenCalledWith(file));
+    expect(
+      await screen.findByRole('button', { name: 'limit.pngを開く' }),
+    ).toBeTruthy();
+  });
   it('uploads only valid files and reports save failures', async () => {
     const user = userEvent.setup();
     await loaded();
@@ -137,7 +151,7 @@ describe('photo application interactions', () => {
     fireEvent.change(input, {
       target: {
         files: [
-          new File([new Uint8Array(10 * 1024 * 1024 + 1)], 'large.png', {
+          new File([new Uint8Array(50 * 1024 * 1024 + 1)], 'large.png', {
             type: 'image/png',
           }),
         ],
