@@ -1,0 +1,11 @@
+{
+  "name": "@photo-server/frontend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:coverage": "vitest run --coverage --config ../../vitest.config.ts",
+    "build": "tsc -p tsconfig.build.json"
+  }
+}

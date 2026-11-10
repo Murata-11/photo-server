@@ -1,5 +1,16 @@
 {
-  "entry": ["src/frontend/index.{ts,tsx}", "src/backend/index.ts"],
-  "project": ["src/**/*.{ts,tsx}"],
-  "ignoreDependencies": []
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.mjs"],
+      "project": ["scripts/*.mjs"]
+    },
+    "apps/*": {
+      "entry": ["src/index.{ts,tsx}"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "packages/*": {
+      "entry": ["src/index.{ts,tsx}"],
+      "project": ["src/**/*.{ts,tsx}"]
+    }
+  }
 }

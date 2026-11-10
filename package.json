@@ -10,11 +10,12 @@
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings 0",
     "check:structure": "node scripts/check-structure.mjs",
-    "typecheck": "npm run check:structure && tsc --noEmit",
-    "test:coverage": "vitest run --coverage",
-    "build": "npm run check:structure && tsc -p tsconfig.build.json",
+    "check:tooling": "node --test scripts/check-structure.test.mjs",
+    "typecheck": "pnpm run check:structure && pnpm -r --workspace-concurrency=1 run typecheck",
+    "test:coverage": "pnpm run check:structure && pnpm -r --workspace-concurrency=1 run test:coverage",
+    "build": "pnpm run check:structure && pnpm -r --workspace-concurrency=1 run build",
     "check:unused": "knip",
-    "dod-check": "npm run format:check && npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run check:unused && npm audit --audit-level=high"
+    "dod-check": "pnpm run format:check && pnpm run lint && pnpm run check:tooling && pnpm run typecheck && pnpm run test:coverage && pnpm run build && pnpm run check:unused && pnpm audit --audit-level=high"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -27,5 +28,6 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.2",
     "vitest": "4.1.12"
-  }
+  },
+  "packageManager": "pnpm@10.34.9"
 }

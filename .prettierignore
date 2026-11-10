@@ -1,3 +1,3 @@
-package-lock.json
-dist/
-coverage/
+pnpm-lock.yaml
+**/dist/
+**/coverage/

@@ -22,18 +22,22 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - run: npm run dod-check
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run dod-check
       - name: Save coverage evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ github.sha }}
-          path: coverage/
+          path: |
+            apps/*/coverage/
+            packages/*/coverage/
           if-no-files-found: ignore
           retention-days: 7
 
