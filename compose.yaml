@@ -10,7 +10,11 @@ services:
     ports:
       - '127.0.0.1:3000:3000'
     volumes:
-      - photo-files:/data/photos
+      - type: bind
+        source: ${PHOTO_STORAGE_PATH:?Set PHOTO_STORAGE_PATH in .env}
+        target: /data/photos
+        bind:
+          create_host_path: false
     depends_on:
       db:
         condition: service_healthy
@@ -44,4 +48,3 @@ services:
       retries: 10
 volumes:
   photo-db:
-  photo-files:
