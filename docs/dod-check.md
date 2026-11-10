@@ -95,3 +95,9 @@ Storybookの開発環境の型検査・静的ビルドは独立した `review-bu
 ## 実アプリ導入後（ADR 0003）
 
 両workspaceに実装とVitestテストを追加。CIのqualityは専用PostgreSQL 17.9サービスを起動し、`TEST_DATABASE_URL`をテスト専用DBに設定する。ローカルでも破棄可能な専用DBが必要（テストがTRUNCATEする）。しきい値は変更しない。生成物の再生成差分と、Storybook・実APIのPC/スマートフォン操作もCIで確認する。本文のアプリ未実装・Docker不要の記述は初期整備時点の状態。現在の起動手順はREADMEを参照。
+
+### PR #15のCI差分の修正
+
+CIのKnipが`src/migrate.ts`を未使用と判定したため、バックエンドのサーバーと初期化CLIを明示的なentryとして登録する。ローカルにだけ存在する生成物の影響に依存しない設定にする。
+
+Gitleaksがgh-pages履歴のStorybook生成JavaScriptにある`o=e.childrens`をgeneric-api-keyとして誤検出した。`.gitleaks.toml`で既定ルールを継承し、この式の完全一致とStorybookのiframeバンドルパスの両方に一致する場合だけ除外する。全Git履歴・作業ツリーのスキャンは維持する。`scripts/check-gitleaks.mjs`で、この式がソースファイルでは除外されず、同じバンドルの認証情報テスト値も検出されることを検証する。

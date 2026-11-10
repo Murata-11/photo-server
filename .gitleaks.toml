@@ -1,0 +1,13 @@
+# Keep all default secret rules and scan all Git history, including review Pages.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Confirmed false positive: Storybook bundle JavaScript property assignment, not a credential"
+condition = "AND"
+regexTarget = "secret"
+regexes = ['''^o=e\.childrens$''']
+paths = ['''(?:^|/)(?:storybook|storybook-static)/assets/iframe-[^/]+\.js$''']

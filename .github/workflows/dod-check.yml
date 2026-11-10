@@ -94,6 +94,8 @@ jobs:
           cache: false
       - name: Install pinned Gitleaks CLI
         run: go install github.com/zricethezav/gitleaks/v8@v8.24.2
+      - name: Verify narrow secret-scan exception
+        run: node scripts/check-gitleaks.mjs "$(go env GOPATH)/bin/gitleaks"
       - name: Scan Git history and working tree
         run: |
           "$(go env GOPATH)/bin/gitleaks" git --redact --no-banner .
