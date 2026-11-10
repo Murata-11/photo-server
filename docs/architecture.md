@@ -1,13 +1,14 @@
 # システム設計
 
-初期実装は[ADR 0003](decisions/0003-hono-implementation.md)に従う。承認記録・信頼境界・未実施の本番確認は同ADRを参照。
+初期実装は[ADR 0003](decisions/0003-hono-implementation.md)、WindowsのDocker Desktopへの配置は[ADR 0004](decisions/0004-docker-desktop.md)に従う。
 
 ```text
-許可された2人 → Tailscale Serve (HTTPS)
-              → 127.0.0.1:3000 Hono / Node.js 24
+許可された2人 → WindowsのTailscale Serve (HTTPS)
+              → Windows 127.0.0.1:3000 → Docker Desktopのアプリコンテナ
+                Hono / Node.js 24（コンテナ内0.0.0.0:3000）
                 ├ React / Viteの静的配信
-                ├ PostgreSQL 17.9 (Docker、127.0.0.1:5432)
-                └ 非公開の写真ディレクトリ（元画像とJPEG表示画像）
+                ├ PostgreSQL 17.9 (別コンテナ、db:5432)
+                └ photo-files volume（元画像とJPEG表示画像）
 ```
 
 すべてのリクエストで2人のTailscaleログイン名を照合する。PC内の他プロセスを信頼するため、アプリをループバック以外で公開しない。Funnelを使用しない。更新APIはOriginとカスタムヘッダーでCSRFを検証する。DB・ファイルの内部情報を応答に含めない。
