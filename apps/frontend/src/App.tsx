@@ -138,8 +138,8 @@ function PhotoApp() {
       for (const file of files) {
         if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type))
           throw new Error('JPEG・PNG・WebPの画像を選んでください');
-        if (file.size > 10 * 1024 * 1024)
-          throw new Error('1枚10MB以下の画像を選んでください');
+        if (file.size > 50 * 1024 * 1024)
+          throw new Error('1枚50MB以下の画像を選んでください');
         const photo = await api.create(file);
         setPhotos((prev) => [photo, ...prev]);
       }
@@ -817,7 +817,7 @@ function PhotoApp() {
             <strong>
               {uploading ? '写真を追加しています…' : '写真を選択する'}
             </strong>
-            <span>JPEG・PNG・WebP ／ 1枚10MBまで</span>
+            <span>JPEG・PNG・WebP ／ 1枚50MBまで</span>
           </button>
           <p className="modal-note">
             追加した写真は、ふたりのライブラリに保存されます。

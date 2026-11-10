@@ -206,12 +206,24 @@ describe('authenticated photo application with real PostgreSQL and files', () =>
       }),
     ]);
   });
+  it('accepts exactly 50MiB and rejects files or bodies over the limit', async () => {
+    const jpeg = await sharp(bytes).jpeg().toBuffer();
+    const content = Buffer.alloc(50 * 1024 * 1024);
+    jpeg.copy(content);
+    const response = await upload(content, 'image/jpeg', 'limit.jpg');
+    expect(response.status).toBe(200);
+    const photo = (await response.json()) as { id: string };
+    expect(
+      (await readFile(join(dataDir, photo.id + '.original'))).equals(content),
+    ).toBe(true);
+    expect((await upload(Buffer.alloc(50 * 1024 * 1024 + 1))).status).toBe(413);
+    expect((await upload(Buffer.alloc(51 * 1024 * 1024 + 1))).status).toBe(413);
+  }, 15000);
   it('validates real image content, fields, ids and albums', async () => {
     expect((await upload(Buffer.from('bad image'))).status).toBe(422);
     expect((await upload(bytes, 'image/jpeg')).status).toBe(422);
     expect((await upload(bytes, 'image/svg+xml')).status).toBe(415);
     expect((await upload(Buffer.alloc(0))).status).toBe(422);
-    expect((await upload(Buffer.alloc(10 * 1024 * 1024 + 1))).status).toBe(413);
     expect((await request('/api/photos', 'POST', new FormData())).status).toBe(
       400,
     );
