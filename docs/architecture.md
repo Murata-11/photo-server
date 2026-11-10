@@ -50,3 +50,7 @@ DBと写真を整合した単位でバックアップし、別の保存先への
 ## UI・API仕様の管理
 
 StorybookとOpenAPIを採用し、[仕様管理](specification-management.md)の責務分担に従う。Storybookは実際に使用するUIコンポーネントを参照し、APIの型・クライアント・モックはOpenAPIから生成する。フレームワークや生成・検証ツールは未選定であり、導入前に提案・承認する。
+
+## DB設計案
+
+テーブル・関連・制約のレビュー案は [DBML](../db/schema.dbml)、保存・解析・一覧取得の整合性と未決事項は [DB設計](database-design.md) を参照する。PostgreSQL型は具体化用の仮置きであり、DB製品の採用・実装は未承認。

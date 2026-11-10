@@ -12,6 +12,7 @@ Tailscaleを使い、許可した2人で写真を共有するプライベート�
 - [OpenAPI](api/openapi.yaml)：初期API契約のレビュー案（未承認・未実装）
 - [製品仕様](docs/product.md)：機能案、受け入れ条件、未決事項
 - [開発フロー](docs/workflow.md)：Issue、ブランチ、PR、承認、リリース
+- [DB設計](docs/database-design.md)：DBMLによるテーブル・関連・制約とdbdiagram.ioでのレビュー手順（案）
 - [システム設計](docs/architecture.md)：構成案と認証・データの境界
 - [初期構成の判断案](docs/decisions/0001-initial-architecture.md)：代替案、影響、承認状況
 - [運用手順](docs/operations.md)：リリース、監視、バックアップ・復元

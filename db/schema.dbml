@@ -1,0 +1,75 @@
+Project photo_server {
+  database_type: 'PostgreSQL'
+  Note: 'レビュー案。PostgreSQL向けの型で表現するがDB製品は未承認。実DB・マイグレーションは未作成。全写真は2人の共通領域。'
+}
+
+Enum extraction_status {
+  pending
+  succeeded
+  absent
+  failed
+}
+
+Enum thumbnail_status {
+  pending
+  ready
+  failed
+}
+
+Table app_users {
+  id uuid [pk, not null, note: 'API /me のid。サーバー発行。']
+  identity_subject text [not null, unique, note: '信頼する入口で確認した安定ID。具体的な識別方式は未決。メールや表示名から推測しない。']
+  display_name text [not null]
+  created_at timestamptz [not null, default: `now()`]
+  Note: '許可IDの実体管理案。登録APIなし。許可する2人のみ運用で登録する。DB行の存在だけでは認証できない。2人上限は運用・アプリで保証。'
+}
+
+Table photos {
+  id uuid [pk, not null]
+  uploaded_by uuid [not null]
+  original_filename text [not null, note: '表示とダウンロード用。保存パスに使用しない。']
+  original_storage_key text [not null, unique, note: 'サーバー発行の保存先相対キー。公開URLや絶対パスを返さない。']
+  media_type text [not null, note: '実データを検証したメディアタイプ。']
+  size_bytes bigint [not null, check: `size_bytes > 0`]
+  sha256 char(64) [not null, note: '元バイト列の整合性検証用。重複アップロードを禁止しないため非unique。小文字16進。']
+  created_at timestamptz [not null, default: `now()`, note: '追加日時。API createdAt。UTCとして出力。']
+  deleted_at timestamptz [note: 'APIからの参照停止時刻。ゴミ箱・保持期間・物理消去を決定するものではない。']
+  indexes {
+    (created_at, id) [name: 'photos_page_order']
+  }
+  Note: '元画像はDB外の永続領域。保存完了した写真だけ登録。deleted_atがNULLの行だけ全取得経路に公開。アップロード者は記録であり権限差を作らない。'
+}
+
+Table photo_metadata {
+  photo_id uuid [pk, not null]
+  time_status extraction_status [not null, default: 'pending']
+  taken_at_local timestamp [note: 'EXIFの撮影現地日時。タイムゾーンなし。追加日時で埋めない。小数秒の扱いは設計文書参照。']
+  taken_at_offset_minutes smallint [check: `taken_at_offset_minutes BETWEEN -840 AND 840`, note: '既知の場合だけ設定。0はUTC、NULLは不明。']
+  location_status extraction_status [not null, default: 'pending']
+  latitude numeric [check: `latitude BETWEEN -90 AND 90`, note: '固定小数桁に丸めない。元EXIFは元ファイルに保持。']
+  longitude numeric [check: `longitude BETWEEN -180 AND 180`]
+  parsed_at timestamptz
+  parser_version text [note: '再解析時の追跡用。']
+  checks {
+    `taken_at_offset_minutes IS NULL OR taken_at_local IS NOT NULL` [name: 'offset_requires_local_time']
+    `(time_status = 'succeeded' AND taken_at_local IS NOT NULL) OR (time_status <> 'succeeded' AND taken_at_local IS NULL AND taken_at_offset_minutes IS NULL)` [name: 'time_status_consistency']
+    `(location_status = 'succeeded' AND latitude IS NOT NULL AND longitude IS NOT NULL) OR (location_status <> 'succeeded' AND latitude IS NULL AND longitude IS NULL)` [name: 'location_status_consistency']
+  }
+  Note: '写真ごとに必ず1行をアプリの同一DBトランザクションで作成。日時・GPSの解析状態を独立管理し、片方の失敗で他方を失わない。EXIF全体・地名はDBへ複製しない。'
+}
+
+Table photo_thumbnails {
+  photo_id uuid [pk, not null]
+  status thumbnail_status [not null, default: 'pending']
+  storage_key text [unique, note: '元画像とは別の保存キー。ready時だけ設定。']
+  size_bytes bigint [check: `size_bytes > 0`]
+  generated_at timestamptz
+  checks {
+    `(status = 'ready' AND storage_key IS NOT NULL AND size_bytes IS NOT NULL AND generated_at IS NOT NULL) OR (status <> 'ready' AND storage_key IS NULL AND size_bytes IS NULL AND generated_at IS NULL)` [name: 'thumbnail_ready_consistency']
+  }
+  Note: '初期は1写真1種類のJPEG。EXIF/GPS除去。失敗時は元画像から再生成できる。複数サイズは将来拡張。'
+}
+
+Ref: photos.uploaded_by > app_users.id [delete: restrict]
+Ref: photos.id - photo_metadata.photo_id [delete: restrict]
+Ref: photos.id - photo_thumbnails.photo_id [delete: restrict]
