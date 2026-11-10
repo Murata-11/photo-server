@@ -55,3 +55,16 @@ PR更新のビルドが失敗した場合、最後に公開成功した版が残
 Chromium/Playwrightで `/photo-server/pr/10/` 相当のサブパスからトップ、Storybook、Swagger UIの7操作、YAML取得、Try it out無効を確認。pageerrorと外部リクエストは0件。ローカルのbare Gitリポジトリで初回保存、別PR追加、既存PR削除を実行し、他PRの保持とソースファイル非公開を確認した。
 
 実GitHub Pagesへの公開・PRコメントの更新は未実施。導入PRのマージとGitHub側の設定後に確認する。既存 `dod-check` のアプリ未実装による失敗は解消対象外。Storybookの既知のチャンクサイズ警告とクラウド環境のグローバル設定保存警告は継続する。Swagger UIの推移的依存 `@scarf/scarf` のインストールスクリプトはpnpmの許可リストに追加せず、無効のまま表示できることを確認した。
+
+## 実サイトでのレビュー確認項目
+
+確認用PRの作成後、次を確認する。結果はそのPRに記録し、実行前に成功と扱わない。
+
+- `review-build` と、後続の `review-pages` が成功している。
+- Botコメントにトップ・Storybook・OpenAPIへのリンクがある。
+- トップから両方の閲覧ページを開ける。
+- `revision.html` のSHAが、確認対象PRの最新コミットと一致する。
+- Swagger UIにAPI操作が表示され、元のYAMLを取得できる。
+- PR更新後は同じコメントが更新され、close後は該当PRのページが削除される。
+
+既存 `dod-check` の失敗と、レビュー資料の公開結果は別に確認する。
