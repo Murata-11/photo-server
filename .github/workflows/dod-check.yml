@@ -18,6 +18,19 @@ jobs:
     name: quality
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17.9-bookworm
+        env:
+          POSTGRES_USER: photo
+          POSTGRES_PASSWORD: ci-test-only
+          POSTGRES_DB: photo_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U photo -d photo_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://photo:ci-test-only@127.0.0.1:5432/photo_test
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,6 +43,31 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm run dod-check
+      - name: Check generated API files
+        run: |
+          pnpm run generate:ui-api
+          git diff --exit-code -- apps/frontend/src/lib apps/frontend/src/mocks/handlers.ts
+      - name: Install test browser
+        run: pnpm --filter @photo-server/frontend exec playwright install --with-deps chromium
+      - name: Select installed Chromium
+        run: |
+          pnpm --filter @photo-server/frontend exec node --input-type=module -e "import {chromium} from '@playwright/test'; console.log('PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH='+chromium.executablePath())" >> "$GITHUB_ENV"
+      - run: pnpm test:ui
+      - name: Test real application
+        env:
+          DATABASE_URL: postgresql://photo:ci-test-only@127.0.0.1:5432/photo_test
+          APP_ORIGIN: http://127.0.0.1:3000
+          ALLOWED_USERS: first@example.test,second@example.test
+          DEV_USER: first@example.test
+          PHOTO_DATA_DIR: ../../work/ci-photo-data
+        run: |
+          mkdir -p work
+          pnpm --filter @photo-server/backend migrate
+          pnpm --filter @photo-server/backend start > work/app.log 2>&1 &
+          app_pid=$!
+          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+          curl --retry 10 --retry-delay 1 --retry-connrefused -fsS http://127.0.0.1:3000/api/me
+          pnpm --filter @photo-server/frontend test:app
       - name: Save coverage evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@v4

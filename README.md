@@ -1,114 +1,68 @@
 # photo-server
 
-Tailscaleを使い、許可した2人で写真を共有するプライベートアプリ。2人とも同じ操作権限を持ちます。
+Tailscaleを使い、許可した2人で写真を共有するプライベートアプリ。ReactのPC・iPhone共通UIとHono API、PostgreSQL、元写真のファイル保存を備えます。認証境界と承認記録は[ADR 0003](docs/decisions/0003-hono-implementation.md)、[CONTRACT](CONTRACT.md)を参照してください。
 
-現在は仕様・設計と開発運用ルールを整備している段階です。画面設計用の試作を追加しています。本番アプリは未実装です。品質チェック用の依存関係と、pnpm workspacesの設定を導入しています。
+## ローカル起動
 
-## 文書
-
-- [AGENTS.md](AGENTS.md)：AIエージェント向けの入口
-- [CONTRACT.md](CONTRACT.md)：POとAIの役割、権限、承認ルール
-- [仕様管理](docs/specification-management.md)：Storybook・OpenAPIのSSOTと整合性確認
-- [OpenAPI](api/openapi.yaml)：初期API契約のレビュー案（未承認・未実装）
-- [製品仕様](docs/product.md)：機能案、受け入れ条件、未決事項
-- [開発フロー](docs/workflow.md)：Issue、ブランチ、PR、承認、リリース
-- [DB設計](docs/database-design.md)：DBMLによるテーブル・関連・制約とdbdiagram.ioでのレビュー手順（案）
-- [システム設計](docs/architecture.md)：構成案と認証・データの境界
-- [初期構成の判断案](docs/decisions/0001-initial-architecture.md)：代替案、影響、承認状況
-- [運用手順](docs/operations.md)：リリース、監視、バックアップ・復元
-
-構成案と未決事項は、各文書の承認状況を確認してください。
-
-## 開発の始め方
-
-1. CONTRACT.mdと関連仕様を確認します。
-2. Issueに目的・範囲・受け入れ条件を記載します。
-3. POが必要な仕様・設計を承認し、readyラベルで着手を承認します。
-4. 作業ブランチで実装・検証し、PRでレビューします。
-
-Issueの自動監視やAIの自動起動は未設定です。現時点ではチャットで作業を依頼します。
-
-## 開発環境・検証
-
-技術選定と初期実装後に、必要なバージョン、依存関係の導入、環境変数名、サービス起動、テスト・ビルドの正確なコマンドをここへ追記します。秘密値は記載しません。
-
-Node.js 24とpnpm 10.34.9を使用します。構成は `apps/frontend`・`apps/backend` と、将来の共有パッケージ `packages/*` です。
+Node.js 24、pnpm 10.34.9、Docker Compose v2を使用します。
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm run dod-check
+cp .env.example .env
+# .envのパスワード、DATABASE_URL、APP_ORIGIN、ALLOWED_USERSを設定
+# ローカル検証時のみ APP_ORIGIN=http://127.0.0.1:3000 と DEV_USER=許可した1人 を設定
+# Tailscaleで使う場合はDEV_USERを必ず削除
+
+docker compose up -d --wait
+pnpm --filter @photo-server/backend migrate
+pnpm build
+pnpm --filter @photo-server/backend start
 ```
 
-各workspaceのチェックと判定条件は [品質チェック](docs/dod-check.md) を参照してください。アプリ未実装のため、現時点の全体判定は失敗します。
+`http://127.0.0.1:3000`で動作します。初期データは空です。写真を追加して利用します。停止はCtrl+C。DBは`docker compose stop`で停止し、`docker compose up -d --wait`で再開します。名前付きvolumeと写真ディレクトリを削除しないでください。`down -v`はデータを破棄するため通常の停止には使いません。
 
-現在は文書の差分確認に `git diff --check` を使用できます。これはアプリの動作検証ではありません。
+`.env`はコミットしません。`PHOTO_DATA_DIR`はバックエンドworkspace基準で解決するため、実データには十分な容量のある絶対パスを推奨します。既定の`work/photo-data`はGit対象外です。DB接続パスワードはDATABASE_URL内でURLエンコードしてください。DDLは初期作成用で、既存スキーマの変更を移行するものではありません。
 
-GitHub Actionsの `dod-check` を追加しました。設定と検証範囲は [品質チェック](docs/dod-check.md) を参照してください。アプリ未実装のため、現時点の全体判定は失敗します。GitHub側の必須チェック設定と、マージ・本番反映の承認は別途必要です。
+UI開発時は別ターミナルで`pnpm --filter @photo-server/frontend dev`を起動できます。この場合は`APP_ORIGIN=http://127.0.0.1:5173`、`DEV_USER`を設定してバックエンドを再起動します。Viteは`/api`をローカルHonoへ転送します。通常起動でMSWは使用しません。
 
-### Storybook（開発環境のみ）
+## Tailscaleで使う場合
 
-ルートで次を実行します。Node.js・pnpmのバージョンは上記と共通です。
+`DEV_USER`を解除し、`ALLOWED_USERS`に実際の2人のTailscaleログイン名、`APP_ORIGIN`にServeのHTTPSオリジンを設定します。アプリは127.0.0.1:3000のみに待ち受け、Tailscale Serveの転送先を`http://127.0.0.1:3000`にします。Tailscale Funnelを有効にしないでください。PC内の他プロセスを信頼する構成です。インターネットやLANへアプリのポートを直接公開しないでください。適用前に2人の実端末と未許可利用者・タグ付き端末の拒否を確認します。今回のPRで本番設定は変更していません。
+
+写真、元画像、サムネイル、API、静的ファイルを認証します。更新はOriginの完全一致とカスタムヘッダーを要求します。全応答はprivate, no-storeです。元ファイルはバイト列を変更せず保存し、ダウンロード時も同一内容です。JPEG/PNG/WebP、1枚10MiB、静止画像・40メガピクセル以下を扱います。ゴミ箱は期限なし、完全削除はありません。
+
+## 検証
+
+バックエンドテストは必ず破棄可能な専用DBに対して実行します。`TEST_DATABASE_URL`に対してテストがTRUNCATEするため、アプリ用・本番用のDBは指定しないでください。CIでは専用PostgreSQLサービスを使用します。
 
 ```sh
-pnpm install --frozen-lockfile
-pnpm run storybook
+TEST_DATABASE_URL=postgresql://... pnpm dod-check
+pnpm build:review
+pnpm check:review
+pnpm test:ui
 ```
 
-`http://127.0.0.1:6006` を開き、**アプリ / ひより / アプリを操作する** を選択します。
-Canvasを全画面表示するとアプリ全体を操作できます。開発サーバーはループバック限定です。
+通常のVitestテストはUI操作・生成クライアント・モックの契約・認証・CSRF・画像検証・元バイト一致・永続性を確認します。coverageのしきい値は行/文/関数80%、分岐70%です。`test:ui`はStorybookを起動してPC・iPhone向け操作を確認します。
 
-iPhone 16向けは **スマートフォン / iPhone 16 / iPhone 16でアプリを操作する** を開きます。393 × 852の専用プレビュー内で、下部タブや写真追加・検索・詳細・アルバムを操作できます。iOS Safariの実機検証は未実施です。
+実APIのE2Eは、専用DBを初期化し、`APP_ORIGIN=http://127.0.0.1:3000`、`DEV_USER`を設定してビルド済みサーバーを起動した後、次を実行します。
 
 ```sh
-pnpm run storybook:typecheck
-pnpm run build-storybook
-pnpm run generate:ui-api
-pnpm run test:ui
-pnpm --filter @photo-server/frontend run dev
+pnpm --filter @photo-server/frontend test:app
 ```
 
-静的成果物は `apps/frontend/storybook-static/` に生成されます。
-写真一覧・詳細・検索・アルバム・お気に入り・写真追加・削除/復元を、MSWによるメモリ内モックで確認できます。
-変更は再読み込みで初期化されます。認証・本番の保存と共有は未実装です。
-画面設計の試作にReactとshadcn/ui構成を使い、StorybookのアダプターをReact/Viteへ変更しました。
-製品への技術採用や未決機能の承認を意味しません。
+JPEGフィクスチャを追加し、再読込、アルバム、お気に入り、ダウンロード一致、ゴミ箱・復元、検索をPC・393×852で検証します。生成したデータは専用DB・専用写真ディレクトリにのみ保存してください。Playwrightは既定で`/usr/bin/chromium`を使用し、他環境では`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`で指定します。iOS Safari実機・実際のTailscale通信・本番バックアップ復元は別途検証が必要です。
 
-詳しいレビュー方法・依存関係・検証条件は [画面設計の記録](docs/ui-prototype.md) を参照してください。
-`api/openapi.yaml` は既存の製品APIレビュー案を維持します。UI試作のモック契約は `api/ui-prototype.openapi.json` に分離し、本番APIとは扱いません。
-`review-build` は従来どおりStorybookと製品OpenAPIを同じレビュー資料へ出力します。
-
-### PRのレビュー用GitHub Pages
-
-[レビュー用ページの運用手順](docs/review-pages.md)を参照してください。
-PRごとにトップ・Storybook・Swagger UIを生成し、更新時に差し替え、close時に削除します。
-公開リポジトリのGitHub Pagesとして誰でも閲覧できます。写真・秘密値は配置しません。
+## Storybook・契約
 
 ```sh
-pnpm run check:review
-pnpm run build:review
-python -m http.server 8080 --bind 127.0.0.1 --directory work/review-site
+pnpm storybook
+pnpm storybook:typecheck
+pnpm build-storybook
+pnpm generate:ui-api
 ```
 
-`http://127.0.0.1:8080/` が入口です。ローカル生成物は `work/review-site/` にあり、コミットしません。
-対象PR・SHAのページは公開ジョブがGitHubの情報から追加します。
-Swagger UI 5.34.1を同梱し、`api/openapi.yaml` を相対パスで読み込みます。
-OpenAPI検証には `@apidevtools/swagger-parser` 13.1.0を使用します。
-外部CDN・オンラインvalidatorには依存せず、Try it outによる実リクエストは無効です。
+Storybookの「アプリ / ひより」「スマートフォン / iPhone 16」で同じAppをMSWに接続して操作できます。Storybookのデータは架空のフィクスチャで、実写真を配置しません。通常起動ではサンプル写真を一覧に混ぜません。
 
-### OpenAPIレビュー案の検証
+HTTP契約の正は[api/openapi.yaml](api/openapi.yaml)。型・クライアント・MSWルートはOpenAPIから固定バージョンで生成し、直接編集しません。再生成後に差分がないことを確認します。[レビュー用Pages](docs/review-pages.md)はStorybookとSwagger UIだけを公開し、バックエンド・写真保存領域・DBは配信しません。
 
-OpenAPI 3.1.0の構文・参照検証に `openapi-spec-validator==0.7.2` を使用します。
-アプリの依存関係や生成ツールの採用を意味するものではありません。
-
-```sh
-python -m venv work/validation-venv
-work/validation-venv/bin/pip install openapi-spec-validator==0.7.2
-work/validation-venv/bin/python -m openapi_spec_validator api/openapi.yaml
-git diff --check
-```
-
-`work/` は一時環境用で、コミット対象にしません。
-レビューではOpenAPIの `x-pending-decisions` と各操作の説明を確認します。
-認証のカスタム表現は設計上の仮置きであり、クライアント生成前に実方式を確定します。
-今回の検証では構文・参照検証と差分チェックが成功しました。
-サーバー未実装のため、認可・CSRF・永続性・元ファイル一致の動作検証と型生成は未実施です。
+製品仕様は[docs/product.md](docs/product.md)、設計は[docs/architecture.md](docs/architecture.md)、DBは[docs/database-design.md](docs/database-design.md)、運用は[docs/operations.md](docs/operations.md)、開発手順は[docs/workflow.md](docs/workflow.md)を参照してください。

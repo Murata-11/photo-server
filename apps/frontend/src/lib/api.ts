@@ -1,34 +1,50 @@
-// Generated from api/ui-prototype.openapi.json by scripts/generate-mocks.mjs. Do not edit.
+// Generated from api/openapi.yaml by scripts/generate-mocks.mjs. Do not edit.
 import type { operations } from './api.generated';
-type Response<K extends keyof operations> =
-  operations[K]['responses'][200]['content']['application/json'];
+type Response<K extends keyof operations> = operations[K] extends {
+  responses: { 200: { content: { 'application/json': infer T } } };
+}
+  ? T
+  : never;
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
-  if (!response.ok)
-    throw new Error('通信に失敗しました。もう一度お試しください。');
+  const response = await fetch(url, {
+    ...init,
+    headers: { 'X-Photo-Request': '1', ...init?.headers },
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as {
+      message?: string;
+    } | null;
+    throw new Error(
+      body?.message || '通信に失敗しました。もう一度お試しください。',
+    );
+  }
   return response.json();
 }
 export const api = {
   list: () => request<Response<'listPhotos'>>('/api/photos'),
+  me: () => request<Response<'getCurrentUser'>>('/api/me'),
+  albums: () => request<Response<'listAlbums'>>('/api/albums'),
+  createAlbum: (name: string) =>
+    request<Response<'createAlbum'>>('/api/albums', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    }),
   update: (
     id: string,
     body: operations['updatePhoto']['requestBody']['content']['application/json'],
   ) =>
-    request<Response<'updatePhoto'>>(
-      '/api/photos/{id}'.replace('{id}', encodeURIComponent(id)),
-      {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      },
-    ),
-  create: (src: string, name: string) =>
-    request<Response<'createPhoto'>>('/api/photos', {
-      method: 'POST',
+    request<Response<'updatePhoto'>>('/api/photos/' + encodeURIComponent(id), {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        src,
-        name,
-      } satisfies operations['createPhoto']['requestBody']['content']['application/json']),
+      body: JSON.stringify(body),
     }),
+  create: (file: File) => {
+    const body = new FormData();
+    body.append('file', file);
+    return request<Response<'createPhoto'>>('/api/photos', {
+      method: 'POST',
+      body,
+    });
+  },
 };

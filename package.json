@@ -21,7 +21,7 @@
     "build-storybook": "pnpm --filter @photo-server/frontend run build-storybook",
     "build:review": "pnpm run storybook:typecheck && pnpm run build-storybook && node scripts/build-review.mjs",
     "check:review": "node --test scripts/review-pages.test.mjs",
-    "generate:ui-api": "openapi-typescript api/ui-prototype.openapi.json -o apps/frontend/src/lib/api.generated.ts && node scripts/generate-mocks.mjs",
+    "generate:ui-api": "openapi-typescript api/openapi.yaml -o apps/frontend/src/lib/api.generated.ts && node scripts/generate-mocks.mjs",
     "test:ui": "pnpm --filter @photo-server/frontend run test:e2e"
   },
   "devDependencies": {

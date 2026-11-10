@@ -91,3 +91,7 @@ Storybookの開発環境の型検査・静的ビルドは独立した `review-bu
 - 実リポジトリでは、アプリ未配置による構造検査失敗と、個別workspaceのテスト0件による失敗を確認。
 - pnpm auditはHigh/Critical 0件、Moderate 1件（ツールごとの集計方式が異なるためnpmの件数とは直接比較しない）。
 - GitHub Actions上のpnpm構成の結果はPR #7のChecksを参照する。
+
+## 実アプリ導入後（ADR 0003）
+
+両workspaceに実装とVitestテストを追加。CIのqualityは専用PostgreSQL 17.9サービスを起動し、`TEST_DATABASE_URL`をテスト専用DBに設定する。ローカルでも破棄可能な専用DBが必要（テストがTRUNCATEする）。しきい値は変更しない。生成物の再生成差分と、Storybook・実APIのPC/スマートフォン操作もCIで確認する。本文のアプリ未実装・Docker不要の記述は初期整備時点の状態。現在の起動手順はREADMEを参照。
