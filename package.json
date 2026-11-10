@@ -1,0 +1,33 @@
+{
+  "name": "photo-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "format:check": "prettier --check .",
+    "lint": "eslint . --max-warnings 0",
+    "check:structure": "node scripts/check-structure.mjs",
+    "check:tooling": "node --test scripts/check-structure.test.mjs",
+    "typecheck": "pnpm run check:structure && pnpm -r --workspace-concurrency=1 run typecheck",
+    "test:coverage": "pnpm run check:structure && pnpm -r --workspace-concurrency=1 run test:coverage",
+    "build": "pnpm run check:structure && pnpm -r --workspace-concurrency=1 run build",
+    "check:unused": "knip",
+    "dod-check": "pnpm run format:check && pnpm run lint && pnpm run check:tooling && pnpm run typecheck && pnpm run test:coverage && pnpm run build && pnpm run check:unused && pnpm audit --audit-level=high"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.2",
+    "@vitest/coverage-v8": "4.1.12",
+    "@vitest/eslint-plugin": "1.6.28",
+    "eslint": "10.14.0",
+    "knip": "5.88.1",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.2",
+    "vitest": "4.1.12"
+  },
+  "packageManager": "pnpm@10.34.9"
+}
