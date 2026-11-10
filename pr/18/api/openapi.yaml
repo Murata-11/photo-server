@@ -1,0 +1,347 @@
+openapi: 3.1.0
+info:
+  title: Photo server API
+  version: 1.0.0
+  description: 既存モック画面に対応する実装契約。元ファイル・EXIF保持、外部位置情報送信なし。ゴミ箱は期限なし、完全削除なし。
+paths:
+  /api/photos:
+    get:
+      operationId: listPhotos
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Photo'
+        '400':
+          description: Invalid input
+        '404':
+          description: Not found
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '409':
+          description: Already exists
+        '413':
+          description: Too large
+        '415':
+          description: Unsupported image
+        '422':
+          description: Corrupt image
+        '500':
+          description: Internal error
+    post:
+      operationId: createPhoto
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Photo'
+        '400':
+          description: Invalid input
+        '404':
+          description: Not found
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '409':
+          description: Already exists
+        '413':
+          description: Too large
+        '415':
+          description: Unsupported image
+        '422':
+          description: Corrupt image
+        '500':
+          description: Internal error
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: JPEG/PNG/WebP、50MiB以下。元バイト列を保持。
+  /api/photos/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      operationId: updatePhoto
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Photo'
+        '400':
+          description: Invalid input
+        '404':
+          description: Not found
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '409':
+          description: Already exists
+        '413':
+          description: Too large
+        '415':
+          description: Unsupported image
+        '422':
+          description: Corrupt image
+        '500':
+          description: Internal error
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                favorite:
+                  type: boolean
+                deleted:
+                  type: boolean
+                album:
+                  type: string
+              additionalProperties: false
+  /api/albums:
+    get:
+      operationId: listAlbums
+      responses:
+        '200':
+          description: Albums
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '400':
+          description: Invalid input
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '404':
+          description: Not found
+        '409':
+          description: Already exists
+        '413':
+          description: Too large
+        '415':
+          description: Unsupported image
+        '422':
+          description: Corrupt image
+        '500':
+          description: Internal error
+    post:
+      operationId: createAlbum
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+      responses:
+        '200':
+          description: Created album name
+          content:
+            application/json:
+              schema:
+                type: string
+        '400':
+          description: Invalid input
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '404':
+          description: Not found
+        '409':
+          description: Already exists
+        '413':
+          description: Too large
+        '415':
+          description: Unsupported image
+        '422':
+          description: Corrupt image
+        '500':
+          description: Internal error
+  /api/me:
+    get:
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - displayName
+                properties:
+                  displayName:
+                    type: string
+        '400':
+          description: Invalid input
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '404':
+          description: Not found
+        '409':
+          description: Already exists
+        '413':
+          description: Too large
+        '415':
+          description: Unsupported image
+        '422':
+          description: Corrupt image
+        '500':
+          description: Internal error
+  /api/photos/{id}/original:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: originalPhoto
+      responses:
+        '200':
+          description: 元バイト列。ゴミ箱内でも許可利用者は取得可能。
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid input
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '404':
+          description: Not found
+        '409':
+          description: Already exists
+        '413':
+          description: Too large
+        '415':
+          description: Unsupported image
+        '422':
+          description: Corrupt image
+        '500':
+          description: Internal error
+  /api/photos/{id}/thumbnail:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: thumbnailPhoto
+      responses:
+        '200':
+          description: EXIF除去済みJPEG
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid input
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '404':
+          description: Not found
+        '409':
+          description: Already exists
+        '413':
+          description: Too large
+        '415':
+          description: Unsupported image
+        '422':
+          description: Corrupt image
+        '500':
+          description: Internal error
+components:
+  schemas:
+    Photo:
+      type: object
+      required:
+        - id
+        - src
+        - name
+        - date
+        - location
+        - favorite
+        - deleted
+        - album
+        - createdAt
+        - originalUrl
+      properties:
+        id:
+          type: string
+        src:
+          type: string
+        name:
+          type: string
+        date:
+          type: string
+        location:
+          type: string
+        favorite:
+          type: boolean
+        deleted:
+          type: boolean
+        album:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        originalUrl:
+          type: string
+  securitySchemes:
+    tailscaleIdentity:
+      type: http
+      scheme: tailscale
+      description:
+        'Tailscale Serveが上書きするTailscale-User-Loginをループバック専用サーバーで検証。PC内プロセスを信頼する。更新はOrigin完全一致とX-Photo-Request:
+        1が必要。'
+security:
+  - tailscaleIdentity: []
