@@ -1,0 +1,7 @@
+node_modules/
+dist/
+storybook-static/
+work/
+test-results/
+playwright-report/
+*.tsbuildinfo
