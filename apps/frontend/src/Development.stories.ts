@@ -1,15 +1,16 @@
-import type { Meta, StoryObj } from '@storybook/html-vite';
+import { createElement } from 'react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 
 // 開発環境の疎通確認専用。製品の画面・コンポーネント仕様ではない。
 const meta = {
   title: 'Development/Environment',
-  render: () => `
-    <main lang="ja">
-      <h1>Storybook 開発環境</h1>
-      <p>Storyの表示を確認できました。</p>
-      <p>これは環境確認用です。製品の画面仕様は未定義です。</p>
-    </main>
-  `,
+  render: () =>
+    createElement(
+      'main',
+      { lang: 'ja' },
+      createElement('h1', null, 'Storybook 開発環境'),
+      createElement('p', null, 'Storyの表示を確認できました。'),
+    ),
 } satisfies Meta;
 
 export default meta;

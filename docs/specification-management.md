@@ -4,7 +4,7 @@
 
 POとの合意に基づき、画面仕様にはStorybook、API契約にはOpenAPIを採用する。本書は運用と配置を定めるもので、画面やAPIの仕様自体を重複記載しない。
 
-OpenAPIの初期レビュー案を `api/openapi.yaml` に配置した（未承認・未実装）。Storybookは開発環境のみ導入済み（[起動・検証手順](../README.md#storybook開発環境のみ)）。製品UIのStoryと生成ツールは未導入。共通品質CIは [dod-check](dod-check.md) に導入済みで、OpenAPIの構文・参照検証とStorybookを含む静的資料生成は `review-build` に導入済み（[レビュー用Pages](review-pages.md)）。OpenAPIの規約・互換性検査は未導入。アプリの技術選定も未完了であり、契約テストや生成物の整合性チェックは未実行。定義だけを完成した実装と扱わない。
+OpenAPIの初期レビュー案を `api/openapi.yaml` に配置した（未承認・未実装）。Storybookは開発環境のみ導入済み（[起動・検証手順](../README.md#storybook開発環境のみ)）。画面設計用の試作Storyと、試作専用の型・クライアント・MSWルート生成を追加した（[範囲と制限](ui-prototype.md)）。製品APIの生成ツール導入は未完了。共通品質CIは [dod-check](dod-check.md) に導入済みで、OpenAPIの構文・参照検証とStorybookを含む静的資料生成は `review-build` に導入済み（[レビュー用Pages](review-pages.md)）。OpenAPIの規約・互換性検査は未導入。アプリの技術選定も未完了であり、契約テストや生成物の整合性チェックは未実行。定義だけを完成した実装と扱わない。
 
 ## 唯一の正と配置
 
@@ -16,7 +16,7 @@ OpenAPIの初期レビュー案を `api/openapi.yaml` に配置した（未承�
 | API契約       | `api/openapi.yaml`（レビュー案）          | パス、操作、入力、応答、エラー、認証要求             |
 | 内部設計      | `docs/architecture.md`、`docs/decisions/` | 構成、認証方式、保存方式、選定理由                   |
 
-現在はHTML/ViteとTypeScriptによる開発環境の疎通確認Storyのみを配置している。`Development/Environment` は製品UIの仕様ではない。製品フレームワークは未選定であり、選定時にアダプターと拡張子を見直す。製品UIのStoryは実際のコンポーネントを共有して作成する。
+StorybookはReact/Viteに変更し、単独起動と共用するApp全体を操作する試作Storyを追加した。製品の正式な技術選定・機能承認を意味しない。`api/openapi.yaml` は変更せず、試作専用のモック契約は `api/ui-prototype.openapi.json` に分離する。製品APIの実装・互換性を保証するものではない。
 
 仕様間に矛盾があれば、製品目的と関連する仕様を照合してPOに確認する。実装を既成事実として仕様を変更しない。
 

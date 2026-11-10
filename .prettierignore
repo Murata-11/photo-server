@@ -3,3 +3,6 @@ pnpm-lock.yaml
 **/coverage/
 **/storybook-static/
 work/
+
+# MSWが生成する配布用worker（直接編集しない）
+apps/frontend/public/mockServiceWorker.js

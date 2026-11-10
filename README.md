@@ -2,7 +2,7 @@
 
 Tailscaleを使い、許可した2人で写真を共有するプライベートアプリ。2人とも同じ操作権限を持ちます。
 
-現在は仕様・設計と開発運用ルールを整備している段階です。アプリコードと本番環境はまだありません。品質チェック用の依存関係と、pnpm workspacesの設定を導入しています。
+現在は仕様・設計と開発運用ルールを整備している段階です。画面設計用の試作を追加しています。本番アプリは未実装です。品質チェック用の依存関係と、pnpm workspacesの設定を導入しています。
 
 ## 文書
 
@@ -54,27 +54,28 @@ pnpm install --frozen-lockfile
 pnpm run storybook
 ```
 
-`http://127.0.0.1:6006` を開き、`Development / Environment / Ready` を選択します。
-環境確認用の文章が表示されることを確認します。停止はCtrl+Cです。
-ポートが使用中なら、`pnpm run storybook --port 6007` で変更できます。
-開発サーバーは既定でループバックに限定します。
+`http://127.0.0.1:6006` を開き、**アプリ / ひより / アプリを操作する** を選択します。
+Canvasを全画面表示するとアプリ全体を操作できます。開発サーバーはループバック限定です。
+
+iPhone 16向けは **スマートフォン / iPhone 16 / iPhone 16でアプリを操作する** を開きます。393 × 852の専用プレビュー内で、下部タブや写真追加・検索・詳細・アルバムを操作できます。iOS Safariの実機検証は未実施です。
 
 ```sh
 pnpm run storybook:typecheck
 pnpm run build-storybook
+pnpm run generate:ui-api
+pnpm run test:ui
+pnpm --filter @photo-server/frontend run dev
 ```
 
-静的成果物は `apps/frontend/storybook-static/` に生成され、コミット対象外です。
-GitHub Actionsの `review-build` ワークフローでは、上記チェックとOpenAPIの検証・レビューサイト生成を実行します。
-アプリ未実装により失敗する既存の `dod-check` とは独立した検証です。
-環境変数・DB・API・秘密値は不要です。公開・デプロイの設定は含みません。
+静的成果物は `apps/frontend/storybook-static/` に生成されます。
+写真一覧・詳細・検索・アルバム・お気に入り・写真追加・削除/復元を、MSWによるメモリ内モックで確認できます。
+変更は再読み込みで初期化されます。認証・本番の保存と共有は未実装です。
+画面設計の試作にReactとshadcn/ui構成を使い、StorybookのアダプターをReact/Viteへ変更しました。
+製品への技術採用や未決機能の承認を意味しません。
 
-Storybook 10.6.6、HTML/Viteアダプター10.6.6、Vite 8.3.7を完全固定しています。
-`@types/react` はStorybook内部の型参照を満たす開発依存です。製品へのReact採用を意味しません。
-設定は `apps/frontend/.storybook/`、Storyは `apps/frontend/src/**/*.stories.ts` に配置します。
-今回はHTMLレンダラーによる疎通確認のみで、製品UI・画面詳細・デザイントークン・APIモックは定義していません。
-製品フレームワークは未選定です。選定時にアダプターを変更し、実際のコンポーネントを使うStoryを追加します。
-環境確認Storyを製品UIのSSOTやアプリ実装済みの証拠として扱いません。
+詳しいレビュー方法・依存関係・検証条件は [画面設計の記録](docs/ui-prototype.md) を参照してください。
+`api/openapi.yaml` は既存の製品APIレビュー案を維持します。UI試作のモック契約は `api/ui-prototype.openapi.json` に分離し、本番APIとは扱いません。
+`review-build` は従来どおりStorybookと製品OpenAPIを同じレビュー資料へ出力します。
 
 ### PRのレビュー用GitHub Pages
 
