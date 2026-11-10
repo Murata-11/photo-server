@@ -8,6 +8,7 @@ Tailscaleを使い、許可した2人で写真を共有するプライベート�
 
 - [AGENTS.md](AGENTS.md)：AIエージェント向けの入口
 - [CONTRACT.md](CONTRACT.md)：POとAIの役割、権限、承認ルール
+- [仕様管理](docs/specification-management.md)：Storybook・OpenAPIのSSOTと整合性確認
 - [製品仕様](docs/product.md)：機能案、受け入れ条件、未決事項
 - [開発フロー](docs/workflow.md)：Issue、ブランチ、PR、承認、リリース
 - [システム設計](docs/architecture.md)：構成案と認証・データの境界

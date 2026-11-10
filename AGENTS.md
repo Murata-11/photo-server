@@ -6,6 +6,7 @@
 作業に関係する以下の文書も確認すること。
 存在しない文書の内容を、決定済みと扱わないこと。
 
+- docs/specification-management.md：Storybook・OpenAPIのSSOTと変更手順
 - docs/product.md：目的、機能、受け入れ条件
 - docs/workflow.md：開発手順、承認の記録方法
 - docs/architecture.md：システム構成と設計
