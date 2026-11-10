@@ -45,6 +45,37 @@ pnpm run dod-check
 
 GitHub Actionsの `dod-check` を追加しました。設定と検証範囲は [品質チェック](docs/dod-check.md) を参照してください。アプリ未実装のため、現時点の全体判定は失敗します。GitHub側の必須チェック設定と、マージ・本番反映の承認は別途必要です。
 
+### Storybook（開発環境のみ）
+
+ルートで次を実行します。Node.js・pnpmのバージョンは上記と共通です。
+
+```sh
+pnpm install --frozen-lockfile
+pnpm run storybook
+```
+
+`http://127.0.0.1:6006` を開き、`Development / Environment / Ready` を選択します。
+環境確認用の文章が表示されることを確認します。停止はCtrl+Cです。
+ポートが使用中なら、`pnpm run storybook --port 6007` で変更できます。
+開発サーバーは既定でループバックに限定します。
+
+```sh
+pnpm run storybook:typecheck
+pnpm run build-storybook
+```
+
+静的成果物は `apps/frontend/storybook-static/` に生成され、コミット対象外です。
+GitHub Actionsの `storybook` ワークフローでも上記2チェックを実行します。
+アプリ未実装により失敗する既存の `dod-check` とは独立した検証です。
+環境変数・DB・API・秘密値は不要です。公開・デプロイの設定は含みません。
+
+Storybook 10.6.6、HTML/Viteアダプター10.6.6、Vite 8.3.7を完全固定しています。
+`@types/react` はStorybook内部の型参照を満たす開発依存です。製品へのReact採用を意味しません。
+設定は `apps/frontend/.storybook/`、Storyは `apps/frontend/src/**/*.stories.ts` に配置します。
+今回はHTMLレンダラーによる疎通確認のみで、製品UI・画面詳細・デザイントークン・APIモックは定義していません。
+製品フレームワークは未選定です。選定時にアダプターを変更し、実際のコンポーネントを使うStoryを追加します。
+環境確認Storyを製品UIのSSOTやアプリ実装済みの証拠として扱いません。
+
 ### OpenAPIレビュー案の検証
 
 OpenAPI 3.1.0の構文・参照検証に `openapi-spec-validator==0.7.2` を使用します。

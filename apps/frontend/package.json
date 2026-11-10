@@ -6,6 +6,15 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test:coverage": "vitest run --coverage --config ../../vitest.config.ts",
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json",
+    "storybook": "storybook dev --host 127.0.0.1 --port 6006 --no-open",
+    "storybook:typecheck": "tsc --project .storybook/tsconfig.json --noEmit",
+    "build-storybook": "storybook build"
+  },
+  "devDependencies": {
+    "@storybook/html-vite": "10.6.6",
+    "@types/react": "19.3.0",
+    "storybook": "10.6.6",
+    "vite": "8.3.7"
   }
 }
