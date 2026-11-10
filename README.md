@@ -21,17 +21,18 @@ Windows PC
   Docker Desktop（WSL2バックエンド / Linuxコンテナ）
     ├ app：Hono API ＋ ビルド済みのReact画面
     │   ├ db:5432 → db：PostgreSQL
-    │   └ /data/photos → photo-files volume：元写真・表示画像
+    │   └ /data/photos → Windowsの指定フォルダー：元写真・表示画像
     └ db → photo-db volume：写真情報・アルバムなど
 ```
 
-| 要素           | 役割・配置                                               |
-| -------------- | -------------------------------------------------------- |
-| Docker Desktop | Windows上でアプリとDBの2コンテナを管理                   |
-| アプリ         | Node.js 24 / Hono。Reactの画面も同じコンテナから配信     |
-| DB             | PostgreSQL 17.9。アプリとはDocker内のネットワークで接続  |
-| 写真・DBデータ | Dockerの名前付きvolumeに保存。コンテナを作り直しても保持 |
-| Tailscale      | Windowsと利用者の端末に導入。ServeがHTTPSの入口を提供    |
+| 要素           | 役割・配置                                                    |
+| -------------- | ------------------------------------------------------------- |
+| Docker Desktop | Windows上でアプリとDBの2コンテナを管理                        |
+| アプリ         | Node.js 24 / Hono。Reactの画面も同じコンテナから配信          |
+| DB             | PostgreSQL 17.9。アプリとはDocker内のネットワークで接続       |
+| 写真           | `.env`の`PHOTO_STORAGE_PATH`で指定したWindowsフォルダーに保存 |
+| DBデータ       | Dockerの`photo-db` volumeに保存。コンテナを作り直しても保持   |
+| Tailscale      | Windowsと利用者の端末に導入。ServeがHTTPSの入口を提供         |
 
 WSL2はDocker Desktopの内部基盤として使います。通常利用では、Ubuntu内での手動起動やWindowsへのNode.js・pnpmの導入は不要です。
 
@@ -104,24 +105,36 @@ notepad .env
 
 次の項目を設定します。
 
-| 項目                           | 設定する値                                      |
-| ------------------------------ | ----------------------------------------------- |
-| `POSTGRES_PASSWORD`            | 自分で決めたDB用パスワード                      |
-| `POSTGRES_PASSWORD_URLENCODED` | 上と同じパスワードをURLエンコードした値         |
-| `APP_ORIGIN`                   | 手順2-2で確認したHTTPS URL。末尾の`/`は付けない |
-| `ALLOWED_USERS`                | 手順2-3で確認した2人のログイン名。カンマ区切り  |
-| `DEV_USER`                     | **設定しない。既存の設定があれば削除する**      |
+| 項目                           | 設定する値                                                    |
+| ------------------------------ | ------------------------------------------------------------- |
+| `POSTGRES_PASSWORD`            | 自分で決めたDB用パスワード                                    |
+| `POSTGRES_PASSWORD_URLENCODED` | 上と同じパスワードをURLエンコードした値                       |
+| `PHOTO_STORAGE_PATH`           | 写真を保存するWindowsフォルダー。例：`D:/Photos/photo-server` |
+| `APP_ORIGIN`                   | 手順2-2で確認したHTTPS URL。末尾の`/`は付けない               |
+| `ALLOWED_USERS`                | 手順2-3で確認した2人のログイン名。カンマ区切り                |
+| `DEV_USER`                     | **設定しない。既存の設定があれば削除する**                    |
 
 パスワードには長くランダムな値を使います。英数字だけならURLエンコード後も同じ値です。記号を含む場合は、たとえば`@`を`%40`に変換します。
 
-URLと利用者の設定例です。実際の値に置き換えてください。
+写真の保存先・URL・利用者の設定例です。実際の値に置き換えてください。
 
 ```dotenv
+PHOTO_STORAGE_PATH=D:/Photos/photo-server
 APP_ORIGIN=https://photo-pc.example-tailnet.ts.net
 ALLOWED_USERS=first@example.com,second@example.com
 ```
 
 `DATABASE_URL`・`PHOTO_DATA_DIR`・`PORT`はNode.js直接起動の開発用です。Dockerでの通常利用では変更不要です。`.env`には秘密情報が含まれるため、Gitに追加しません。
+
+保存先フォルダーは起動前に作成してください。上の例なら次を実行します。
+
+```powershell
+New-Item -ItemType Directory -Force "D:/Photos/photo-server"
+```
+
+Windowsパスは`D:/Photos/photo-server`のように`/`区切りで指定します。空白を含む場合は`.env`で値を引用符で囲みます。未設定・空欄では起動できません。存在しないフォルダーも起動時にエラーになるため、ドライブ名とパスを確認してください。相対パスは`compose.yaml`のあるフォルダー基準です。例の初期値`./work/photo-data`を使う場合は、そのフォルダーを作成します。
+
+元写真は`<写真ID>.original`、表示用画像は`<写真ID>.jpg`として同じフォルダーに保存します。アプリが管理するファイルなので、エクスプローラーから名前変更・削除しないでください。
 
 ### 3-3. ビルドして起動する
 
@@ -160,7 +173,7 @@ docker compose up -d --wait
 
 初回作成後は、Docker DesktopのContainers画面からプロジェクト全体を停止・起動することもできます。Windows・Docker Desktopの停止中やPCのスリープ中は利用できません。
 
-**`docker compose down -v`、volume削除、Docker Desktopのデータリセットは保存データを失います。通常の停止には使いません。** 既存のPC内写真ディレクトリはvolumeへ自動移行されません。バックアップ・移行は[運用手順](docs/operations.md)を参照してください。初期テーブルの作成処理は、将来のスキーマ変更を行う移行機構ではありません。
+**`docker compose down -v`、volume削除、Docker Desktopのデータリセットは保存データを失います。通常の停止には使いません。** `PHOTO_STORAGE_PATH`を変更しても、保存済み写真は自動移動されません。旧構成の`photo-files` volumeを含め、保存先を切り替える場合はアプリを停止し、バックアップ後に元写真・表示画像を全て新しいフォルダーへコピーしてください。DBも対応するデータを維持します。新しい保存先で表示・ダウンロードを確認するまで旧データを削除しません。バックアップ・移行は[運用手順](docs/operations.md)を参照してください。初期テーブルの作成処理は、将来のスキーマ変更を行う移行機構ではありません。
 
 ### うまく接続できないとき
 

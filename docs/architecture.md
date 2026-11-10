@@ -8,7 +8,7 @@
                 Hono / Node.js 24（コンテナ内0.0.0.0:3000）
                 ├ React / Viteの静的配信
                 ├ PostgreSQL 17.9 (別コンテナ、db:5432)
-                └ photo-files volume（元画像とJPEG表示画像）
+                └ PHOTO_STORAGE_PATHのホストフォルダー（元画像とJPEG表示画像）
 ```
 
 すべてのリクエストで2人のTailscaleログイン名を照合する。PC内の他プロセスを信頼するため、アプリをループバック以外で公開しない。Funnelを使用しない。更新APIはOriginとカスタムヘッダーでCSRFを検証する。DB・ファイルの内部情報を応答に含めない。
