@@ -1,0 +1,5 @@
+{
+  "entry": ["src/frontend/index.{ts,tsx}", "src/backend/index.ts"],
+  "project": ["src/**/*.{ts,tsx}"],
+  "ignoreDependencies": []
+}

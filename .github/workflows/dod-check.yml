@@ -1,0 +1,73 @@
+name: dod-check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dod-check-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run dod-check
+      - name: Save coverage evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ github.sha }}
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  secrets:
+    name: secrets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.2'
+          cache: false
+      - name: Install pinned Gitleaks CLI
+        run: go install github.com/zricethezav/gitleaks/v8@v8.24.2
+      - name: Scan Git history and working tree
+        run: |
+          "$(go env GOPATH)/bin/gitleaks" git --redact --no-banner .
+          "$(go env GOPATH)/bin/gitleaks" dir --redact --no-banner .
+
+  dod-check:
+    name: dod-check
+    if: ${{ always() }}
+    needs: [quality, secrets]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require every check to succeed
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          SECRETS_RESULT: ${{ needs.secrets.result }}
+        run: |
+          test "$QUALITY_RESULT" = success
+          test "$SECRETS_RESULT" = success
