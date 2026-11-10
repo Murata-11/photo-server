@@ -57,6 +57,8 @@ pnpm run storybook
 `http://127.0.0.1:6006` を開き、**アプリ / ひより / アプリを操作する** を選択します。
 Canvasを全画面表示するとアプリ全体を操作できます。開発サーバーはループバック限定です。
 
+iPhone 16向けは **スマートフォン / iPhone 16 / iPhone 16でアプリを操作する** を開きます。393 × 852の専用プレビュー内で、下部タブや写真追加・検索・詳細・アルバムを操作できます。iOS Safariの実機検証は未実施です。
+
 ```sh
 pnpm run storybook:typecheck
 pnpm run build-storybook

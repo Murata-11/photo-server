@@ -586,6 +586,8 @@ function PhotoApp() {
         <button
           className="mobile-toggle"
           aria-label="メニュー"
+          aria-expanded={mobileMenu}
+          aria-controls="library-menu"
           onClick={() => setMobileMenu(!mobileMenu)}
         >
           <Menu />
@@ -621,6 +623,15 @@ function PhotoApp() {
             <SlidersHorizontal size={19} />
           )}
         </div>
+        <Button
+          className="mobile-upload"
+          variant="secondary"
+          size="icon"
+          aria-label="写真をアップロード"
+          onClick={() => setUpload(true)}
+        >
+          <Plus size={23} />
+        </Button>
         <div className="header-right">
           <span className="private-label">
             <span />
@@ -639,7 +650,17 @@ function PhotoApp() {
           </button>
         </div>
       </header>
-      <aside className={`sidebar ${mobileMenu ? 'mobile-open' : ''}`}>
+      {mobileMenu && (
+        <button
+          className="mobile-menu-backdrop"
+          aria-label="メニューを閉じる"
+          onClick={() => setMobileMenu(false)}
+        />
+      )}
+      <aside
+        id="library-menu"
+        className={`sidebar ${mobileMenu ? 'mobile-open' : ''}`}
+      >
         <Button className="upload-button" onClick={() => setUpload(true)}>
           <Plus size={22} />
           写真を追加
@@ -755,6 +776,25 @@ function PhotoApp() {
           <Route path="/photo/:id" element={<Detail />} />
         </Routes>
       </main>
+      {!mobileMenu && (
+        <nav className="mobile-bottom-nav" aria-label="メインナビゲーション">
+          {navigation.map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end
+              className={({ isActive }) =>
+                `mobile-nav-link ${isActive || (to === '/albums' && location.pathname.startsWith('/album/')) ? 'active' : ''}`
+              }
+            >
+              <span className="mobile-nav-icon">
+                <Icon size={22} />
+              </span>
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </nav>
+      )}
       <Dialog open={upload} onOpenChange={setUpload}>
         <DialogContent>
           <DialogTitle className="dialog-title">思い出を追加</DialogTitle>
