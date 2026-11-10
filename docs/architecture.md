@@ -41,3 +41,7 @@ Tailnetのアクセス制御とアプリの許可ID管理方法は未決。2人�
 ## 運用との関係
 
 DBと写真を整合した単位でバックアップし、別の保存先への退避と復元を検証する。具体策は[運用手順](operations.md)、構成の判断理由は[ADR 0001](decisions/0001-initial-architecture.md)を参照する。
+
+## UI・API仕様の管理
+
+StorybookとOpenAPIを採用し、[仕様管理](specification-management.md)の責務分担に従う。Storybookは実際に使用するUIコンポーネントを参照し、APIの型・クライアント・モックはOpenAPIから生成する。フレームワークや生成・検証ツールは未選定であり、導入前に提案・承認する。
