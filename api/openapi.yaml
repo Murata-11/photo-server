@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: photo-server API
   version: 0.1.0-draft
-  description: 'POレビュー用の初期契約案。実装・仕様承認は未実施。製品仕様の写真追加・閲覧・ダウンロード・削除を対象とする。全操作はTailscale内の許可された2人だけが利用でき、権限は同一。アルバム・タグ・編集・登録・公開リンクは対象外。
+  description: 'POレビュー用の初期契約案。API全体の承認と実装は未実施。元ファイル・撮影日時・位置情報の保持方針は製品仕様第4節に従い承認済み。製品仕様の写真追加・閲覧・ダウンロード・削除を対象とする。全操作はTailscale内の許可された2人だけが利用でき、権限は同一。アルバム・タグ・編集・登録・公開リンクは対象外。
     更新操作は同一オリジンに限定し、サーバーでCSRFを検証する。写真・利用者情報・エラー応答にはCache-Control: private, no-storeを付ける。APIは認証エラー時にHTMLログインへリダイレクトしない。'
 servers:
 - url: /api/v1
@@ -15,7 +15,7 @@ security:
 x-review-status: proposed
 x-pending-decisions:
 - Tailscale Serveの利用者識別方法、信頼境界とCSRF方式の確定。
-- 許可形式、容量制限、元ファイル・メタデータ保持方針。
+- 許可形式、容量制限。
 - 削除・復元・物理消去・バックアップの保持方針。
 - 本案のページング、1件ずつのアップロード、サムネイルJPEGの承認。
 paths:
@@ -105,7 +105,7 @@ paths:
           $ref: '#/components/responses/Error415'
         '422':
           $ref: '#/components/responses/Error422'
-      description: 1リクエスト1ファイル。一括UIは個別に呼び出し各結果を表示する。実データと形式を検証し、不完全な保存を成功扱いしない。許可形式・容量制限はPO確認後に確定する。応答喪失後の再送は重複登録の可能性があり、自動再送は行わない。
+      description: 1リクエスト1ファイル。一括UIは個別に呼び出し各結果を表示する。実データと形式を検証し、不完全な保存を成功扱いしない。許可形式・容量制限はPO確認後に確定する。元ファイルはEXIFを含め変更せず保持する。撮影日時・GPSは内部保存のみで初期レスポンスには含めない。メタデータ解析の失敗だけではアップロードを失敗させない。応答喪失後の再送は重複登録の可能性があり、自動再送は行わない。
       requestBody:
         required: true
         content:
@@ -205,7 +205,7 @@ paths:
       summary: サムネイルを取得
       responses:
         '200':
-          description: 生成済みサムネイル。生成中・一時的失敗は503とRetry-Afterを返す。
+          description: EXIF・GPSなどのメタデータを除去した生成済みサムネイル。生成中・一時的失敗は503とRetry-Afterを返す。
           content:
             image/jpeg:
               schema:
