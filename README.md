@@ -65,7 +65,7 @@ pnpm run build-storybook
 ```
 
 静的成果物は `apps/frontend/storybook-static/` に生成され、コミット対象外です。
-GitHub Actionsの `storybook` ワークフローでも上記2チェックを実行します。
+GitHub Actionsの `review-build` ワークフローでは、上記チェックとOpenAPIの検証・レビューサイト生成を実行します。
 アプリ未実装により失敗する既存の `dod-check` とは独立した検証です。
 環境変数・DB・API・秘密値は不要です。公開・デプロイの設定は含みません。
 
@@ -75,6 +75,24 @@ Storybook 10.6.6、HTML/Viteアダプター10.6.6、Vite 8.3.7を完全固定し
 今回はHTMLレンダラーによる疎通確認のみで、製品UI・画面詳細・デザイントークン・APIモックは定義していません。
 製品フレームワークは未選定です。選定時にアダプターを変更し、実際のコンポーネントを使うStoryを追加します。
 環境確認Storyを製品UIのSSOTやアプリ実装済みの証拠として扱いません。
+
+### PRのレビュー用GitHub Pages
+
+[レビュー用ページの運用手順](docs/review-pages.md)を参照してください。
+PRごとにトップ・Storybook・Swagger UIを生成し、更新時に差し替え、close時に削除します。
+公開リポジトリのGitHub Pagesとして誰でも閲覧できます。写真・秘密値は配置しません。
+
+```sh
+pnpm run check:review
+pnpm run build:review
+python -m http.server 8080 --bind 127.0.0.1 --directory work/review-site
+```
+
+`http://127.0.0.1:8080/` が入口です。ローカル生成物は `work/review-site/` にあり、コミットしません。
+対象PR・SHAのページは公開ジョブがGitHubの情報から追加します。
+Swagger UI 5.34.1を同梱し、`api/openapi.yaml` を相対パスで読み込みます。
+OpenAPI検証には `@apidevtools/swagger-parser` 13.1.0を使用します。
+外部CDN・オンラインvalidatorには依存せず、Try it outによる実リクエストは無効です。
 
 ### OpenAPIレビュー案の検証
 
