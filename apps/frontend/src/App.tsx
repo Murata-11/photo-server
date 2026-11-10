@@ -43,7 +43,8 @@ import {
   DialogDescription,
 } from './components/ui/dialog';
 import { api } from './lib/api';
-import type { Photo } from './mocks/data';
+import type { components } from './lib/api.generated';
+type Photo = components['schemas']['Photo'];
 
 const navigation = [
   { to: '/', label: 'フォト', icon: Images },
@@ -72,7 +73,8 @@ function PhotoApp() {
     [selected, setSelected] = useState<string[]>([]),
     [mobileMenu, setMobileMenu] = useState(false),
     [filter, setFilter] = useState('すべて'),
-    [showInfo, setShowInfo] = useState(false);
+    [showInfo, setShowInfo] = useState(false),
+    [displayName, setDisplayName] = useState('');
   const navigate = useNavigate(),
     location = useLocation(),
     fileInput = useRef<HTMLInputElement>(null);
@@ -80,7 +82,14 @@ function PhotoApp() {
     setLoading(true);
     setError('');
     try {
-      setPhotos(await api.list());
+      const [savedPhotos, albums, me] = await Promise.all([
+        api.list(),
+        api.albums(),
+        api.me(),
+      ]);
+      setPhotos(savedPhotos);
+      setNewAlbums(albums);
+      setDisplayName(me.displayName);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -131,13 +140,7 @@ function PhotoApp() {
           throw new Error('JPEG・PNG・WebPの画像を選んでください');
         if (file.size > 10 * 1024 * 1024)
           throw new Error('1枚10MB以下の画像を選んでください');
-        const src = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result));
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-        const photo = await api.create(src, file.name);
+        const photo = await api.create(file);
         setPhotos((prev) => [photo, ...prev]);
       }
       setUpload(false);
@@ -215,25 +218,26 @@ function PhotoApp() {
           <div className="memories">
             <button
               className="memory memory-wide"
-              onClick={() =>
-                navigate('/album/' + encodeURIComponent('秋の小旅行'))
-              }
+              onClick={() => navigate('/photo/' + active[0]?.id)}
             >
-              <img src="photos/01.jpg" alt="山の風景" />
+              <img src={active[0]?.src} alt={active[0]?.name} />
               <div className="memory-shade" />
               <span className="memory-tag">
                 <Sun size={14} /> MOMENTS TO REMEMBER
               </span>
               <div className="memory-copy">
-                <span>ふたりの、秋の記録</span>
-                <p>いつもの日常から、少し遠くへ。</p>
+                <span>ふたりの、写真の記録</span>
+                <p>共有した写真を見返そう。</p>
               </div>
               <span className="memory-arrow">
                 <ArrowRight size={20} />
               </span>
             </button>
             <button className="memory" onClick={() => navigate('/favorites')}>
-              <img src="photos/07.jpg" alt="海辺の鳥" />
+              <img
+                src={(active.find((p) => p.favorite) ?? active[0])?.src}
+                alt="お気に入りの写真"
+              />
               <div className="memory-shade" />
               <span className="memory-tag">
                 <Heart size={14} /> YOUR FAVORITES
@@ -246,18 +250,13 @@ function PhotoApp() {
                 <ArrowRight size={20} />
               </span>
             </button>
-            <button
-              className="memory"
-              onClick={() =>
-                navigate('/album/' + encodeURIComponent('海のある休日'))
-              }
-            >
-              <img src="photos/09.jpg" alt="夕焼けの桟橋" />
+            <button className="memory" onClick={() => navigate('/albums')}>
+              <img src={(active[2] ?? active[0])?.src} alt="共有した写真" />
               <div className="memory-shade" />
               <span className="memory-tag">A LITTLE ESCAPE</span>
               <div className="memory-copy">
-                <span>あの日の、海</span>
-                <p>波の音まで思い出す。</p>
+                <span>思い出のアルバム</span>
+                <p>写真をまとめて残そう。</p>
               </div>
               <span className="memory-arrow">
                 <ArrowRight size={20} />
@@ -285,7 +284,7 @@ function PhotoApp() {
           </div>
           <span className="sort-label">
             <ArrowUp size={14} />
-            撮影日の新しい順
+            追加日の新しい順（UTC）
           </span>
         </div>
         {selected.length > 0 && (
@@ -303,10 +302,11 @@ function PhotoApp() {
               variant="secondary"
               size="sm"
               onClick={async () => {
+                const failed: string[] = [];
                 for (const p of photos.filter((p) => selected.includes(p.id)))
-                  await update(p, { favorite: true });
-                setSelected([]);
-                toast.success('お気に入りに追加しました');
+                  if (!(await update(p, { favorite: true }))) failed.push(p.id);
+                setSelected(failed);
+                if (!failed.length) toast.success('お気に入りに追加しました');
               }}
             >
               <Heart size={16} />
@@ -475,7 +475,7 @@ function PhotoApp() {
               aria-label="ダウンロード"
               asChild
             >
-              <a href={photo.src} download={photo.name + '.jpg'}>
+              <a href={photo.originalUrl} download={photo.name}>
                 <Download size={20} />
               </a>
             </Button>
@@ -546,9 +546,9 @@ function PhotoApp() {
             <h2>写真の情報</h2>
             <p>ファイル名</p>
             <strong>{photo.name}</strong>
-            <p>撮影日</p>
+            <p>追加日（UTC）</p>
             <strong>{photo.date}</strong>
-            <p>場所</p>
+            <p>撮影情報</p>
             <strong>{photo.location}</strong>
             <p>アルバム</p>
             <select
@@ -561,7 +561,7 @@ function PhotoApp() {
                 <option key={name}>{name}</option>
               ))}
             </select>
-            <small>画面設計用のサンプル情報です。</small>
+            <small>撮影日時・位置情報は元ファイルに保持しています。</small>
           </aside>
         )}
       </div>
@@ -642,7 +642,8 @@ function PhotoApp() {
             aria-label="共有スペースの情報"
             onClick={() =>
               toast.info(
-                'ふたりの共有ライブラリです。現在は画面設計用のモックで動作しています。',
+                displayName +
+                  'として接続しています。ふたりの共有ライブラリです。',
               )
             }
           >
@@ -819,7 +820,7 @@ function PhotoApp() {
             <span>JPEG・PNG・WebP ／ 1枚10MBまで</span>
           </button>
           <p className="modal-note">
-            追加した写真は、このプレビュー内で確認できます。
+            追加した写真は、ふたりのライブラリに保存されます。
           </p>
         </DialogContent>
       </Dialog>
@@ -860,12 +861,18 @@ function PhotoApp() {
             思い出に、名前をつけましょう。
           </DialogDescription>
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               const name = albumName.trim();
               if (!name) return;
               if (albumNames.includes(name)) {
                 toast.error('同じ名前のアルバムがあります');
+                return;
+              }
+              try {
+                await api.createAlbum(name);
+              } catch (error) {
+                toast.error((error as Error).message);
                 return;
               }
               setNewAlbums((prev) => [...prev, name]);

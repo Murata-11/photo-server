@@ -2,7 +2,12 @@
 import { http } from 'msw';
 import * as scenarios from './scenarios';
 export const handlers = [
-  http.get('/api/photos', scenarios.listPhotos),
-  http.post('/api/photos', scenarios.createPhoto),
-  http.patch('/api/photos/:id', scenarios.updatePhoto),
+  http.get('*/api/photos', scenarios.listPhotos),
+  http.post('*/api/photos', scenarios.createPhoto),
+  http.patch('*/api/photos/:id', scenarios.updatePhoto),
+  http.get('*/api/albums', scenarios.listAlbums),
+  http.post('*/api/albums', scenarios.createAlbum),
+  http.get('*/api/me', scenarios.getCurrentUser),
+  http.get('*/api/photos/:id/original', scenarios.originalPhoto),
+  http.get('*/api/photos/:id/thumbnail', scenarios.thumbnailPhoto),
 ];

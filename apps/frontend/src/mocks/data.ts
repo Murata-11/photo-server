@@ -22,6 +22,8 @@ const names = [
 ];
 export const seed: Photo[] = names.map((name, i) => ({
   id: String(i + 1),
+  createdAt: '2026-11-10T00:00:00.000Z',
+  originalUrl: `photos/${String(i + 1).padStart(2, '0')}.jpg`,
   src: `photos/${String(i + 1).padStart(2, '0')}.jpg`,
   name,
   date: i < 8 ? '2026-11-08' : i < 13 ? '2026-11-03' : '2026-10-25',

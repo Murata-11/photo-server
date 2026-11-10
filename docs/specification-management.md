@@ -68,3 +68,7 @@ StorybookはReact/Viteに変更し、単独起動と共用するApp全体を操�
 2. 導入済みのStorybook開発環境を製品フレームワークへ適合させ、レビュー対象の製品UI Storyを作成する。
 3. 初期API契約をOpenAPIで提案し、検証と型生成を実行する。
 4. CIに上記チェックを組み込み、仕様レビュー後にアプリ実装を進める。
+
+## 実アプリ導入後（ADR 0003）
+
+HTTP契約は`api/openapi.yaml`へ統合した。`api/ui-prototype.openapi.json`は廃止し、`pnpm generate:ui-api`で型・通信クライアント・MSWルートを生成する。通常起動は実API、Storybookだけモックを使う。React/Vite・Hono/Node.js・pg・sharp・exifrの具体化、認証承認はADR 0003を参照。本文の未導入・未実装の記述は初期整備時の記録で、現状はREADMEとADRを優先する。
