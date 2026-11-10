@@ -1,68 +1,186 @@
 # photo-server
 
-Tailscaleを使い、許可した2人で写真を共有するプライベートアプリ。ReactのPC・iPhone共通UIとHono API、PostgreSQL、元写真のファイル保存を備えます。認証境界と承認記録は[ADR 0003](docs/decisions/0003-hono-implementation.md)、[CONTRACT](CONTRACT.md)を参照してください。
+**Windows の Docker Desktop で動かす、2人専用の写真共有アプリです。**
+写真の追加・閲覧・ダウンロード、アルバム、お気に入り、ゴミ箱・復元に対応します。PC・スマートフォンから、Tailscale 経由で利用します。
 
-## ローカル起動
+1. [構成](#1-構成)
+2. [Tailscale の設定](#2-tailscale-の設定)
+3. [デプロイ手順](#3-デプロイ手順)
 
-Node.js 24、pnpm 10.34.9、Docker Compose v2を使用します。
+## 1. 構成
 
-```sh
-pnpm install --frozen-lockfile
-cp .env.example .env
-# .envのパスワード、DATABASE_URL、APP_ORIGIN、ALLOWED_USERSを設定
-# ローカル検証時のみ APP_ORIGIN=http://127.0.0.1:3000 と DEV_USER=許可した1人 を設定
-# Tailscaleで使う場合はDEV_USERを必ず削除
+```text
+利用者2人のPC・スマートフォン
+  │ Tailscale（同じTailnetに参加）
+  │ HTTPS
+  ▼
+Windows PC
+  Tailscale Serve
+    │ http://127.0.0.1:3000
+    ▼
+  Docker Desktop（WSL2バックエンド / Linuxコンテナ）
+    ├ app：Hono API ＋ ビルド済みのReact画面
+    │   ├ db:5432 → db：PostgreSQL
+    │   └ /data/photos → photo-files volume：元写真・表示画像
+    └ db → photo-db volume：写真情報・アルバムなど
+```
 
+| 要素           | 役割・配置                                               |
+| -------------- | -------------------------------------------------------- |
+| Docker Desktop | Windows上でアプリとDBの2コンテナを管理                   |
+| アプリ         | Node.js 24 / Hono。Reactの画面も同じコンテナから配信     |
+| DB             | PostgreSQL 17.9。アプリとはDocker内のネットワークで接続  |
+| 写真・DBデータ | Dockerの名前付きvolumeに保存。コンテナを作り直しても保持 |
+| Tailscale      | Windowsと利用者の端末に導入。ServeがHTTPSの入口を提供    |
+
+WSL2はDocker Desktopの内部基盤として使います。通常利用では、Ubuntu内での手動起動やWindowsへのNode.js・pnpmの導入は不要です。
+
+Windowsへのポート公開は`127.0.0.1:3000`（アプリ）と`127.0.0.1:5432`（DB）に限定しています。利用者には**TailscaleのHTTPS URL**を案内します。インターネットへのポート開放は不要です。
+
+## 2. Tailscale の設定
+
+### 2-1. Windowsと利用端末を同じTailnetへ参加させる
+
+1. サーバーにするWindows PCに[Tailscale](https://tailscale.com/download/windows)をインストールし、ログインします。
+2. [Tailscale管理画面](https://login.tailscale.com/admin/users)から、もう1人の利用者を同じTailnetへ招待します。
+3. 2人が利用するPC・スマートフォンにもTailscaleをインストールし、それぞれ自分のアカウントでログインします。
+4. 管理画面のMachinesで、Windows PCと利用端末が接続されていることを確認します。
+
+このアプリはServeが付ける利用者情報で認証します。利用端末はユーザーに所属する端末を使ってください。**タグ付き端末からの利用は拒否します。**
+
+### 2-2. WindowsでServeを有効にし、URLを確認する
+
+WindowsのPowerShellで実行します。
+
+```powershell
+tailscale status
+tailscale serve --bg http://127.0.0.1:3000
+tailscale serve status
+```
+
+初回に設定用URLが表示された場合は、ブラウザーで開いてServe / HTTPSを有効にしてから、もう一度実行します。管理者権限を求められた場合は、PowerShellを管理者として開き直します。
+
+表示されたHTTPS URLを控えます。例：
+
+```text
+https://photo-pc.example-tailnet.ts.net
+```
+
+この時点でアプリが未起動なら、URLを開いても画面は表示されません。次のデプロイ手順を完了してから確認します。
+
+### 2-3. 許可する2人を決める
+
+Tailscale管理画面のUsersで、2人のログイン名を確認します。アプリの`ALLOWED_USERS`には、このログイン名をカンマ区切りで設定します。端末名や表示名ではありません。
+
+- Tailnetに参加していても、`ALLOWED_USERS`にない利用者はアプリを使えません。
+- Tailnet側にアクセス制御を設定している場合は、2人の端末からWindows PCのTCP 443への接続を許可します。
+- **Tailscale Funnelは使用しません。** アプリの3000番・DBの5432番をLANやインターネットへ公開しないでください。
+
+ServeはWindowsのローカル接続をアプリへ転送します。この構成では、Windows上のプロセスとDockerを操作できる利用者を信頼します。
+
+## 3. デプロイ手順
+
+### 3-1. Docker Desktopとソースを準備する
+
+1. Windowsに[Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/)をインストールして起動します。
+2. Settings → Generalの **Use the WSL 2 based engine** を有効にし、Linuxコンテナを使用します。
+3. Gitを用意し、PowerShellでリポジトリを取得します。すでに取得済みなら、そのフォルダーへ移動します。
+
+```powershell
+git clone https://github.com/Murata-11/photo-server.git
+cd photo-server
+```
+
+以降のコマンドは、`compose.yaml`のあるフォルダーで実行します。デプロイするコードには、`Dockerfile`とアプリ定義を含む`compose.yaml`が必要です。
+
+### 3-2. `.env`を設定する
+
+初回だけ実行します。既存の`.env`がある場合はコピーせず、内容を確認してください。
+
+```powershell
+Copy-Item .env.example .env
+notepad .env
+```
+
+次の項目を設定します。
+
+| 項目                           | 設定する値                                      |
+| ------------------------------ | ----------------------------------------------- |
+| `POSTGRES_PASSWORD`            | 自分で決めたDB用パスワード                      |
+| `POSTGRES_PASSWORD_URLENCODED` | 上と同じパスワードをURLエンコードした値         |
+| `APP_ORIGIN`                   | 手順2-2で確認したHTTPS URL。末尾の`/`は付けない |
+| `ALLOWED_USERS`                | 手順2-3で確認した2人のログイン名。カンマ区切り  |
+| `DEV_USER`                     | **設定しない。既存の設定があれば削除する**      |
+
+パスワードには長くランダムな値を使います。英数字だけならURLエンコード後も同じ値です。記号を含む場合は、たとえば`@`を`%40`に変換します。
+
+URLと利用者の設定例です。実際の値に置き換えてください。
+
+```dotenv
+APP_ORIGIN=https://photo-pc.example-tailnet.ts.net
+ALLOWED_USERS=first@example.com,second@example.com
+```
+
+`DATABASE_URL`・`PHOTO_DATA_DIR`・`PORT`はNode.js直接起動の開発用です。Dockerでの通常利用では変更不要です。`.env`には秘密情報が含まれるため、Gitに追加しません。
+
+### 3-3. ビルドして起動する
+
+```powershell
+docker compose up -d --build --wait
+docker compose ps
+```
+
+`app`と`db`の両方が`healthy`になれば起動完了です。初回はイメージ取得とビルドに時間がかかります。DBの準備を待って初期テーブルを作成し、その後アプリが起動します。
+
+### 3-4. 2人の端末から確認する
+
+1. 各端末でTailscaleを接続します。
+2. ブラウザーで`APP_ORIGIN`に設定したHTTPS URLを開きます。
+3. 1人がテスト用写真を追加し、もう1人が表示・ダウンロードできることを確認します。
+
+`http://127.0.0.1:3000`をブラウザーで直接開くと、Tailscaleの利用者情報がないため認証エラーになるのが通常です。**TailscaleのHTTPS URLから接続してください。**
+
+### 更新・停止・再開
+
+更新時は、承認されたコードを取得し、DBと写真をバックアップしたうえで再ビルドします。同じフォルダー・Composeプロジェクト名を使ってください。
+
+```powershell
+docker compose up -d --build --wait
+```
+
+`.env`だけを変更した場合も、`docker compose up -d --wait`でコンテナへ反映します。Docker Desktopの単なる再起動では設定変更は反映されません。
+
+```powershell
+# 停止
+docker compose stop
+
+# 再開
 docker compose up -d --wait
-pnpm --filter @photo-server/backend migrate
-pnpm build
-pnpm --filter @photo-server/backend start
 ```
 
-`http://127.0.0.1:3000`で動作します。初期データは空です。写真を追加して利用します。停止はCtrl+C。DBは`docker compose stop`で停止し、`docker compose up -d --wait`で再開します。名前付きvolumeと写真ディレクトリを削除しないでください。`down -v`はデータを破棄するため通常の停止には使いません。
+初回作成後は、Docker DesktopのContainers画面からプロジェクト全体を停止・起動することもできます。Windows・Docker Desktopの停止中やPCのスリープ中は利用できません。
 
-`.env`はコミットしません。`PHOTO_DATA_DIR`はバックエンドworkspace基準で解決するため、実データには十分な容量のある絶対パスを推奨します。既定の`work/photo-data`はGit対象外です。DB接続パスワードはDATABASE_URL内でURLエンコードしてください。DDLは初期作成用で、既存スキーマの変更を移行するものではありません。
+**`docker compose down -v`、volume削除、Docker Desktopのデータリセットは保存データを失います。通常の停止には使いません。** 既存のPC内写真ディレクトリはvolumeへ自動移行されません。バックアップ・移行は[運用手順](docs/operations.md)を参照してください。初期テーブルの作成処理は、将来のスキーマ変更を行う移行機構ではありません。
 
-UI開発時は別ターミナルで`pnpm --filter @photo-server/frontend dev`を起動できます。この場合は`APP_ORIGIN=http://127.0.0.1:5173`、`DEV_USER`を設定してバックエンドを再起動します。Viteは`/api`をローカルHonoへ転送します。通常起動でMSWは使用しません。
+### うまく接続できないとき
 
-## Tailscaleで使う場合
-
-`DEV_USER`を解除し、`ALLOWED_USERS`に実際の2人のTailscaleログイン名、`APP_ORIGIN`にServeのHTTPSオリジンを設定します。アプリは127.0.0.1:3000のみに待ち受け、Tailscale Serveの転送先を`http://127.0.0.1:3000`にします。Tailscale Funnelを有効にしないでください。PC内の他プロセスを信頼する構成です。インターネットやLANへアプリのポートを直接公開しないでください。適用前に2人の実端末と未許可利用者・タグ付き端末の拒否を確認します。今回のPRで本番設定は変更していません。
-
-写真、元画像、サムネイル、API、静的ファイルを認証します。更新はOriginの完全一致とカスタムヘッダーを要求します。全応答はprivate, no-storeです。元ファイルはバイト列を変更せず保存し、ダウンロード時も同一内容です。JPEG/PNG/WebP、1枚10MiB、静止画像・40メガピクセル以下を扱います。ゴミ箱は期限なし、完全削除はありません。
-
-## 検証
-
-バックエンドテストは必ず破棄可能な専用DBに対して実行します。`TEST_DATABASE_URL`に対してテストがTRUNCATEするため、アプリ用・本番用のDBは指定しないでください。CIでは専用PostgreSQLサービスを使用します。
-
-```sh
-TEST_DATABASE_URL=postgresql://... pnpm dod-check
-pnpm build:review
-pnpm check:review
-pnpm test:ui
+```powershell
+docker compose ps
+docker compose logs --tail 100 app db
+tailscale status
+tailscale serve status
 ```
 
-通常のVitestテストはUI操作・生成クライアント・モックの契約・認証・CSRF・画像検証・元バイト一致・永続性を確認します。coverageのしきい値は行/文/関数80%、分岐70%です。`test:ui`はStorybookを起動してPC・iPhone向け操作を確認します。
+| 症状                           | 確認すること                                                       |
+| ------------------------------ | ------------------------------------------------------------------ |
+| ビルド・起動に失敗             | Docker Desktopが起動しているか。ログと`.env`の必須項目を確認       |
+| HTTPS URLが開かない            | 両端末のTailscale接続、Serveの転送先、TailnetのTCP 443の許可       |
+| 利用者を確認できない           | HTTPS URLから開いているか。利用端末がタグ付きでないか              |
+| 利用が許可されていない         | `ALLOWED_USERS`がTailscaleのログイン名と完全一致するか             |
+| 写真の追加など更新操作だけ失敗 | `APP_ORIGIN`がアクセス中のHTTPSオリジンと一致し、末尾に`/`がないか |
 
-実APIのE2Eは、専用DBを初期化し、`APP_ORIGIN=http://127.0.0.1:3000`、`DEV_USER`を設定してビルド済みサーバーを起動した後、次を実行します。
+この構成はLinux環境でビルド・認証・保存・コンテナ再作成後の永続性を確認しています。Windows Docker Desktop実機、実際のTailscale通信、バックアップからの復元は別途確認が必要です。
 
-```sh
-pnpm --filter @photo-server/frontend test:app
-```
+---
 
-JPEGフィクスチャを追加し、再読込、アルバム、お気に入り、ダウンロード一致、ゴミ箱・復元、検索をPC・393×852で検証します。生成したデータは専用DB・専用写真ディレクトリにのみ保存してください。Playwrightは既定で`/usr/bin/chromium`を使用し、他環境では`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`で指定します。iOS Safari実機・実際のTailscale通信・本番バックアップ復元は別途検証が必要です。
-
-## Storybook・契約
-
-```sh
-pnpm storybook
-pnpm storybook:typecheck
-pnpm build-storybook
-pnpm generate:ui-api
-```
-
-Storybookの「アプリ / ひより」「スマートフォン / iPhone 16」で同じAppをMSWに接続して操作できます。Storybookのデータは架空のフィクスチャで、実写真を配置しません。通常起動ではサンプル写真を一覧に混ぜません。
-
-HTTP契約の正は[api/openapi.yaml](api/openapi.yaml)。型・クライアント・MSWルートはOpenAPIから固定バージョンで生成し、直接編集しません。再生成後に差分がないことを確認します。[レビュー用Pages](docs/review-pages.md)はStorybookとSwagger UIだけを公開し、バックエンド・写真保存領域・DBは配信しません。
-
-製品仕様は[docs/product.md](docs/product.md)、設計は[docs/architecture.md](docs/architecture.md)、DBは[docs/database-design.md](docs/database-design.md)、運用は[docs/operations.md](docs/operations.md)、開発手順は[docs/workflow.md](docs/workflow.md)を参照してください。
+開発者向けの起動・テスト・Storybookは[開発・検証](docs/development.md)にまとめています。詳細は[製品仕様](docs/product.md)、[設計](docs/architecture.md)、[Docker Desktopの判断記録](docs/decisions/0004-docker-desktop.md)、[運用手順](docs/operations.md)、[開発の合意事項](CONTRACT.md)を参照してください。

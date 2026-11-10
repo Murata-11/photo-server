@@ -1,6 +1,34 @@
 services:
+  app:
+    build: .
+    command: ['sh', '-c', 'node dist/migrate.js && exec node dist/index.js']
+    environment:
+      DATABASE_URL: postgresql://photo:${POSTGRES_PASSWORD_URLENCODED:?Set POSTGRES_PASSWORD_URLENCODED in .env}@db:5432/photo
+      APP_ORIGIN: ${APP_ORIGIN:?Set APP_ORIGIN in .env}
+      ALLOWED_USERS: ${ALLOWED_USERS:?Set ALLOWED_USERS in .env}
+      DEV_USER: ${DEV_USER:-}
+    ports:
+      - '127.0.0.1:3000:3000'
+    volumes:
+      - photo-files:/data/photos
+    depends_on:
+      db:
+        condition: service_healthy
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/photos', {headers: {'Tailscale-User-Login': process.env.ALLOWED_USERS.split(',')[0].trim()}}).then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
   db:
     image: postgres:17.9-bookworm
+    restart: unless-stopped
     environment:
       POSTGRES_USER: photo
       POSTGRES_DB: photo
@@ -16,3 +44,4 @@ services:
       retries: 10
 volumes:
   photo-db:
+  photo-files:

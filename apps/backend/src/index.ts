@@ -3,7 +3,8 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { resolve } from 'node:path';
 import { createApp } from './app.js';
 import { database } from './store.js';
-const { DATABASE_URL, APP_ORIGIN, ALLOWED_USERS, DEV_USER } = process.env;
+const { DATABASE_URL, APP_ORIGIN, ALLOWED_USERS } = process.env;
+const DEV_USER = process.env.DEV_USER || undefined;
 if (!DATABASE_URL || !APP_ORIGIN || !ALLOWED_USERS)
   throw new Error('DATABASE_URL, APP_ORIGIN, ALLOWED_USERS が必要です');
 const origin = new URL(APP_ORIGIN);
@@ -19,11 +20,11 @@ const app = createApp({
   users: ALLOWED_USERS.split(',').map((u) => u.trim()),
   devUser: DEV_USER,
 });
-// Authentication also covers the HTML and all static assets. Never expose the listener beyond loopback.
+// Authentication also covers HTML and static assets. In Docker, publish only to host loopback.
 app.use('*', serveStatic({ root: '../frontend/dist' }));
 const server = serve({
   fetch: app.fetch,
-  hostname: '127.0.0.1',
+  hostname: process.env.HOST ?? '127.0.0.1',
   port: Number(process.env.PORT ?? 3000),
 });
 for (const signal of ['SIGTERM', 'SIGINT'])
