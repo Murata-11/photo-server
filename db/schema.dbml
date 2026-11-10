@@ -1,6 +1,6 @@
 Project photo_server {
   database_type: 'PostgreSQL'
-  Note: 'レビュー案。PostgreSQL向けの型で表現するがDB製品は未承認。実DB・マイグレーションは未作成。全写真は2人の共通領域。'
+  Note: 'スキーマはレビュー案。PostgreSQLをPC内のDockerコンテナで運用する方針は承認済み。実DB・マイグレーションは未作成。全写真は2人の共通領域。'
 }
 
 Enum extraction_status {
