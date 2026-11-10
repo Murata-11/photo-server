@@ -54,3 +54,7 @@ StorybookとOpenAPIを採用し、[仕様管理](specification-management.md)の
 ## DB設計案
 
 テーブル・関連・制約のレビュー案は [DBML](../db/schema.dbml)、保存・解析・一覧取得の整合性と未決事項は [DB設計](database-design.md) を参照する。PostgreSQLの採用とPC内DockerでのDB稼働は承認済み。スキーマと具体的な構築設定はレビュー中・未実装。
+
+## Storybook開発環境
+
+2026-11-10のPOのチャット依頼（[Issue #8](https://github.com/Murata-11/photo-server/issues/8)）に基づき、`apps/frontend` にHTML/Viteの最小構成を配置する。これは開発環境の疎通確認に限定し、製品フレームワークの採用や画面仕様の承認を意味しない。製品UI導入時にアダプターを見直す。起動と検証は[README](../README.md#storybook開発環境のみ)を参照する。

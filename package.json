@@ -15,7 +15,10 @@
     "test:coverage": "pnpm run check:structure && pnpm -r --workspace-concurrency=1 run test:coverage",
     "build": "pnpm run check:structure && pnpm -r --workspace-concurrency=1 run build",
     "check:unused": "knip",
-    "dod-check": "pnpm run format:check && pnpm run lint && pnpm run check:tooling && pnpm run typecheck && pnpm run test:coverage && pnpm run build && pnpm run check:unused && pnpm audit --audit-level=high"
+    "dod-check": "pnpm run format:check && pnpm run lint && pnpm run check:tooling && pnpm run typecheck && pnpm run test:coverage && pnpm run build && pnpm run check:unused && pnpm audit --audit-level=high",
+    "storybook": "pnpm --filter @photo-server/frontend run storybook",
+    "storybook:typecheck": "pnpm --filter @photo-server/frontend run storybook:typecheck",
+    "build-storybook": "pnpm --filter @photo-server/frontend run build-storybook"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
