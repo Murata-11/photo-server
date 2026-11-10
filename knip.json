@@ -1,0 +1,36 @@
+{
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.mjs"],
+      "project": ["scripts/*.mjs"]
+    },
+    "apps/*": {
+      "entry": ["src/index.{ts,tsx}"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "packages/*": {
+      "entry": ["src/index.{ts,tsx}"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "apps/frontend": {
+      "entry": [
+        "src/main.tsx",
+        ".storybook/main.ts",
+        ".storybook/preview.ts",
+        "src/**/*.stories.{ts,tsx}",
+        "tests/**/*.spec.ts",
+        "playwright.config.ts",
+        "vite.config.ts"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx,css}",
+        ".storybook/*.ts",
+        "tests/**/*.ts",
+        "*.config.ts"
+      ]
+    }
+  },
+  "ignoreIssues": {
+    "apps/frontend/src/lib/api.generated.ts": ["types"]
+  }
+}

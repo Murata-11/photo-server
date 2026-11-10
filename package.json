@@ -1,47 +1,43 @@
 {
-  "name": "photo-server-ui",
-  "version": "0.1.0",
+  "name": "photo-server",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
-  "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "tsc -b && vite build",
-    "storybook": "storybook dev -p 6006 --host 0.0.0.0",
-    "build-storybook": "storybook build",
-    "generate:api": "openapi-typescript api/openapi.yaml -o src/lib/api.generated.ts && node scripts/generate-mocks.mjs",
-    "test:e2e": "playwright test"
+  "engines": {
+    "node": ">=24 <25"
   },
-  "dependencies": {
-    "@radix-ui/react-dialog": "^1.1.15",
-    "@radix-ui/react-slot": "^1.2.3",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.468.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "react-router-dom": "^7.9.5",
-    "sonner": "^2.0.7",
-    "tailwind-merge": "^3.3.1"
+  "scripts": {
+    "format:check": "prettier --check .",
+    "lint": "eslint . --max-warnings 0",
+    "check:structure": "node scripts/check-structure.mjs",
+    "check:tooling": "node --test scripts/check-structure.test.mjs",
+    "typecheck": "pnpm run check:structure && pnpm -r --workspace-concurrency=1 run typecheck",
+    "test:coverage": "pnpm run check:structure && pnpm -r --workspace-concurrency=1 run test:coverage",
+    "build": "pnpm run check:structure && pnpm -r --workspace-concurrency=1 run build",
+    "check:unused": "knip",
+    "dod-check": "pnpm run format:check && pnpm run lint && pnpm run check:tooling && pnpm run typecheck && pnpm run test:coverage && pnpm run build && pnpm run check:unused && pnpm audit --audit-level=high",
+    "storybook": "pnpm --filter @photo-server/frontend run storybook",
+    "storybook:typecheck": "pnpm --filter @photo-server/frontend run storybook:typecheck",
+    "build-storybook": "pnpm --filter @photo-server/frontend run build-storybook",
+    "build:review": "pnpm run storybook:typecheck && pnpm run build-storybook && node scripts/build-review.mjs",
+    "check:review": "node --test scripts/review-pages.test.mjs",
+    "generate:ui-api": "openapi-typescript api/ui-prototype.openapi.json -o apps/frontend/src/lib/api.generated.ts && node scripts/generate-mocks.mjs",
+    "test:ui": "pnpm --filter @photo-server/frontend run test:e2e"
   },
   "devDependencies": {
-    "@playwright/test": "^1.56.1",
-    "@storybook/react-vite": "^10.0.6",
-    "@tailwindcss/vite": "^4.1.17",
-    "@types/node": "^24.10.0",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
-    "@vitejs/plugin-react": "^5.1.0",
-    "msw": "^2.12.2",
-    "msw-storybook-addon": "^2.0.6",
-    "openapi-typescript": "^7.10.1",
-    "storybook": "^10.0.6",
-    "tailwindcss": "^4.1.17",
-    "typescript": "^5.9.3",
-    "vite": "^7.2.2"
+    "@apidevtools/swagger-parser": "13.1.0",
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.2",
+    "@vitest/coverage-v8": "4.1.12",
+    "@vitest/eslint-plugin": "1.6.28",
+    "eslint": "10.14.0",
+    "knip": "5.88.1",
+    "prettier": "3.9.10",
+    "swagger-ui-dist": "5.34.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.2",
+    "vitest": "4.1.12",
+    "openapi-typescript": "7.13.0"
   },
-  "msw": {
-    "workerDirectory": [
-      "public"
-    ]
-  }
+  "packageManager": "pnpm@10.34.9"
 }

@@ -1,7 +1,12 @@
-node_modules/
-dist/
-storybook-static/
+**/node_modules/
+**/dist/
+**/coverage/
+.env
+.env.*
+!.env.example
 work/
-test-results/
-playwright-report/
+**/storybook-static/
+
+**/test-results/
+**/playwright-report/
 *.tsbuildinfo
