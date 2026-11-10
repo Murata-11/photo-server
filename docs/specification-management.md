@@ -4,7 +4,7 @@
 
 POとの合意に基づき、画面仕様にはStorybook、API契約にはOpenAPIを採用する。本書は運用と配置を定めるもので、画面やAPIの仕様自体を重複記載しない。
 
-OpenAPIの初期レビュー案を `api/openapi.yaml` に配置した（未承認・未実装）。Storybookは開発環境のみ導入済み（[起動・検証手順](../README.md#storybook開発環境のみ)）。製品UIのStoryと生成ツールは未導入。共通品質CIは [dod-check](dod-check.md) に導入済みで、OpenAPI専用のCI検証は未導入。アプリの技術選定も未完了であり、契約テストや生成物の整合性チェックは未実行。定義だけを完成した実装と扱わない。
+OpenAPIの初期レビュー案を `api/openapi.yaml` に配置した（未承認・未実装）。Storybookは開発環境のみ導入済み（[起動・検証手順](../README.md#storybook開発環境のみ)）。製品UIのStoryと生成ツールは未導入。共通品質CIは [dod-check](dod-check.md) に導入済みで、OpenAPIの構文・参照検証とStorybookを含む静的資料生成は `review-build` に導入済み（[レビュー用Pages](review-pages.md)）。OpenAPIの規約・互換性検査は未導入。アプリの技術選定も未完了であり、契約テストや生成物の整合性チェックは未実行。定義だけを完成した実装と扱わない。
 
 ## 唯一の正と配置
 

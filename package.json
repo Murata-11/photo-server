@@ -18,9 +18,12 @@
     "dod-check": "pnpm run format:check && pnpm run lint && pnpm run check:tooling && pnpm run typecheck && pnpm run test:coverage && pnpm run build && pnpm run check:unused && pnpm audit --audit-level=high",
     "storybook": "pnpm --filter @photo-server/frontend run storybook",
     "storybook:typecheck": "pnpm --filter @photo-server/frontend run storybook:typecheck",
-    "build-storybook": "pnpm --filter @photo-server/frontend run build-storybook"
+    "build-storybook": "pnpm --filter @photo-server/frontend run build-storybook",
+    "build:review": "pnpm run storybook:typecheck && pnpm run build-storybook && node scripts/build-review.mjs",
+    "check:review": "node --test scripts/review-pages.test.mjs"
   },
   "devDependencies": {
+    "@apidevtools/swagger-parser": "13.1.0",
     "@eslint/js": "10.0.1",
     "@types/node": "24.19.2",
     "@vitest/coverage-v8": "4.1.12",
@@ -28,6 +31,7 @@
     "eslint": "10.14.0",
     "knip": "5.88.1",
     "prettier": "3.9.10",
+    "swagger-ui-dist": "5.34.1",
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.2",
     "vitest": "4.1.12"
