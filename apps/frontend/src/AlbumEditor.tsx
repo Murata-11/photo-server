@@ -70,7 +70,7 @@ export function AlbumEditor({
     function outside(e: MouseEvent) {
       if (
         e.target instanceof Element &&
-        !panel.current?.contains(e.target) &&
+        !(panel.current && e.composedPath().includes(panel.current)) &&
         !e.target.closest('[data-album-editor-trigger]')
       )
         onClose();
@@ -192,7 +192,6 @@ export function AlbumEditor({
                 />
                 <span>{name}</span>
               </label>
-              {pending.includes(name) && <p role="status">保存中</p>}
               {name in failures && (
                 <div role="alert">
                   <p>保存・確認できませんでした</p>

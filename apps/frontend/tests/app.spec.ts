@@ -302,7 +302,11 @@ for (const width of [1280, 393]) {
     ).toBeChecked();
     await open('saving');
     await first.click();
-    await expect(page.getByRole('status')).toContainText('保存中');
+    await expect(
+      page
+        .getByRole('region', { name: 'アルバムに追加・解除', exact: true })
+        .getByText('保存中', { exact: true }),
+    ).toHaveCount(0);
     await expect(first).toBeDisabled();
     await expect(
       page.getByRole('checkbox', { name: '海のある休日', exact: true }),
