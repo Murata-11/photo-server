@@ -67,14 +67,8 @@ export function App({
   );
 }
 function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
-  const acceptedTypes = [
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-    'image/heic',
-    'image/heif',
-  ];
-  const formatMessage = 'JPEG・PNG・WebP・HEICの静止画像を選んでください';
+  const acceptedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  const formatMessage = 'JPEG・PNG・WebPの静止画像を選んでください';
   const [photos, setPhotos] = useState<Photo[]>([]),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(''),
@@ -889,7 +883,7 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
             <strong>
               {uploading ? '写真を追加しています…' : '写真を選択する'}
             </strong>
-            <span>JPEG・PNG・WebP・HEIC ／ 1枚50MB・6,000万画素まで</span>
+            <span>JPEG・PNG・WebP ／ 1枚50MB・6,000万画素まで</span>
           </button>
           <p className="modal-note">
             追加した写真は、ふたりのライブラリに保存されます。

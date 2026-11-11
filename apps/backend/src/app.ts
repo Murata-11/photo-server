@@ -145,15 +145,7 @@ export function createApp(settings: Settings) {
     if (!file.size) fail(422, '空のファイルです');
     if (file.size > 50 * 1024 * 1024)
       fail(413, '1枚50MB以下の画像を選んでください');
-    if (
-      ![
-        'image/jpeg',
-        'image/png',
-        'image/webp',
-        'image/heic',
-        'image/heif',
-      ].includes(file.type)
-    )
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type))
       fail(415, imageMessages.unsupported);
     const bytes = Buffer.from(await file.arrayBuffer());
     let processed;

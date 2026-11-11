@@ -47,7 +47,7 @@ export class ImageProcessor {
         let timedOut = false;
         const timer = setTimeout(() => {
           timedOut = true;
-          // Kill the process group, including a running libheif inspector.
+          // Kill the process group, including any descendants.
           try {
             if (process.platform !== 'win32' && child.pid)
               process.kill(-child.pid, 'SIGKILL');

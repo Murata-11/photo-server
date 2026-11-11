@@ -1,7 +1,6 @@
 import sharp from 'sharp';
 import exifr from 'exifr';
 import { readFile, writeFile } from 'node:fs/promises';
-import { spawnSync } from 'node:child_process';
 import { normalizeMetadata } from './metadata.js';
 
 const pixels = 60_000_000;
@@ -10,7 +9,7 @@ export const imageMessages = {
   corrupt: '画像を読み込めません。破損していない画像を選んでください',
   mismatch: '画像の形式と内容が一致しません',
   multiple: '複数画像・アニメーション・動画には対応していません',
-  unsupported: 'JPEG・PNG・WebP・HEICの静止画像を選んでください',
+  unsupported: 'JPEG・PNG・WebPの静止画像を選んでください',
   busy: '画像を処理できませんでした。時間をおいて再試行してください',
 };
 export class ImageError extends Error {
@@ -29,37 +28,7 @@ export async function processImage(
   sharp.cache(false);
   sharp.concurrency(1);
   const bytes = await readFile(input);
-  const heic = ['image/heic', 'image/heif'].includes(mime);
   try {
-    if (heic) {
-      // Recognize common non-HEIF signatures before invoking the HEIF parser.
-      if (
-        bytes.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])) ||
-        bytes.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47])) ||
-        bytes.subarray(0, 4).toString() === 'RIFF'
-      )
-        throw new ImageError(422, imageMessages.mismatch);
-      const inspected = spawnSync(
-        process.env.HEIF_INSPECTOR ?? '/opt/native/bin/photo-heif-inspect',
-        [input],
-        {
-          stdio: 'ignore',
-          timeout: 25_000,
-        },
-      );
-      if (inspected.error || inspected.signal)
-        throw new ImageError(503, imageMessages.busy);
-      if (inspected.status === 26)
-        throw new ImageError(415, imageMessages.unsupported);
-      if (inspected.status === 24)
-        throw new ImageError(422, imageMessages.multiple);
-      if (inspected.status === 25)
-        throw new ImageError(422, imageMessages.pixels);
-      if (![0, 22, 24, 25, 26].includes(inspected.status ?? -1))
-        throw new ImageError(503, imageMessages.busy);
-      if (inspected.status !== 0)
-        throw new ImageError(422, imageMessages.corrupt);
-    }
     const image = sharp(bytes, { limitInputPixels: pixels, failOn: 'warning' });
     const info = await image.metadata();
     if (!info.width || !info.height)
@@ -70,12 +39,9 @@ export async function processImage(
       jpeg: ['image/jpeg'],
       png: ['image/png'],
       webp: ['image/webp'],
-      heif: ['image/heic', 'image/heif'],
     };
     if (!info.format || !expected[info.format]?.includes(mime))
       throw new ImageError(422, imageMessages.mismatch);
-    if (heic && info.compression !== 'hevc')
-      throw new ImageError(415, imageMessages.unsupported);
     if ((info.pages ?? 1) > 1)
       throw new ImageError(422, imageMessages.multiple);
     await image

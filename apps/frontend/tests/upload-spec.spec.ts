@@ -2,23 +2,23 @@ import { test, expect } from '@playwright/test';
 import { writeFile, truncate } from 'node:fs/promises';
 const story = (name: string) =>
   '/iframe.html?id=' +
-  encodeURIComponent('issue-20-48mp・heicアップロード--' + name) +
+  encodeURIComponent('issue-20-48mpアップロード--' + name) +
   '&viewMode=story';
 const file = {
-  name: 'synthetic-48mp.heic',
-  mimeType: 'image/heic',
-  // UIモック用。実HEIC・48MPデコードの検証ではない。
+  name: 'synthetic-48mp.jpg',
+  mimeType: 'image/jpeg',
+  // UIモック用。実48MPデコードの検証ではない。
   buffer: Buffer.from('ui fixture only'),
 };
 for (const width of [1440, 393]) {
-  test(`HEICの選択・保存と画面案内 ${width}`, async ({ page }) => {
+  test(`JPEGの選択・保存と画面案内 ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height: width === 393 ? 852 : 1000 });
     await page.goto(story('normal'));
     await expect(page.getByRole('dialog')).toBeVisible();
     await expect(page.getByText(/6,000万画素まで/)).toBeVisible();
-    expect(
-      await page.locator('input[type=file]').getAttribute('accept'),
-    ).toContain('image/heic');
+    expect(await page.locator('input[type=file]').getAttribute('accept')).toBe(
+      'image/jpeg,image/png,image/webp',
+    );
     await page.screenshot({ path: `../../work/issue20-upload-${width}.png` });
     await page.locator('input[type=file]').setInputFiles(file);
     await expect(page.getByText('1枚の写真を追加しました')).toBeVisible();
@@ -35,7 +35,7 @@ for (const [name, message] of [
   ['corrupt', '画像を読み込めません。破損していない画像を選んでください'],
   ['mismatch', '画像の形式と内容が一致しません'],
   ['multiple', '複数画像・アニメーション・動画には対応していません'],
-  ['unsupported', 'JPEG・PNG・WebP・HEICの静止画像を選んでください'],
+  ['unsupported', 'JPEG・PNG・WebPの静止画像を選んでください'],
   ['busy', '画像を処理できませんでした。時間をおいて再試行してください'],
 ] as const) {
   test(`失敗理由を表示し再試行できる ${name}`, async ({ page }) => {
@@ -58,7 +58,7 @@ test('保存中・容量/形式の拒否・Escapeと通常アプリの互換', a
     page.getByRole('button', { name: /写真を追加しています/ }),
   ).toBeDisabled();
   await page.goto(story('normal'));
-  const largePath = testInfo.outputPath('large.heic');
+  const largePath = testInfo.outputPath('large.jpg');
   await writeFile(largePath, '');
   await truncate(largePath, 50 * 1024 * 1024 + 1);
   await page.locator('input[type=file]').setInputFiles(largePath);
@@ -69,8 +69,19 @@ test('保存中・容量/形式の拒否・Escapeと通常アプリの互換', a
     .locator('input[type=file]')
     .setInputFiles({ ...file, name: 'bad.gif', mimeType: 'image/gif' });
   await expect(
-    page.getByText('JPEG・PNG・WebP・HEICの静止画像を選んでください'),
+    page.getByText('JPEG・PNG・WebPの静止画像を選んでください'),
   ).toBeVisible();
+  for (const mime of ['image/heic', 'image/heif']) {
+    await page.goto(story('normal'));
+    await page
+      .locator('input[type=file]')
+      .setInputFiles({ ...file, name: 'unsupported.heif', mimeType: mime });
+    await expect(
+      page.getByText('JPEG・PNG・WebPの静止画像を選んでください', {
+        exact: true,
+      }),
+    ).toBeVisible();
+  }
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.goto(
@@ -81,6 +92,6 @@ test('保存中・容量/形式の拒否・Escapeと通常アプリの互換', a
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('input[type=file]')).toHaveAttribute(
     'accept',
-    'image/jpeg,image/png,image/webp,image/heic,image/heif',
+    'image/jpeg,image/png,image/webp',
   );
 });

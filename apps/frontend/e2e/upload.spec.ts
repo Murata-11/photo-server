@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-test('48MP HEICを変換せず追加し、JPEGで閲覧して元バイトを取得する', async ({
+test('48MP JPEGを追加・閲覧して元バイトを取得しHEIFは拒否する', async ({
   page,
 }, info) => {
-  const name = `48mp-${info.project.name}-${Date.now()}.heic`;
-  const source = await readFile('../backend/test-fixtures/heic/48mp.heic');
+  const name = `48mp-${info.project.name}-${Date.now()}.jpg`;
+  const source = await readFile('../backend/test-fixtures/48mp.jpg');
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
@@ -23,7 +23,7 @@ test('48MP HEICを変換せず追加し、JPEGで閲覧して元バイトを取�
   await expect(page.getByText(/6,000万画素まで/)).toBeVisible();
   await page
     .locator('input[type=file]')
-    .setInputFiles({ name, mimeType: 'image/heic', buffer: source });
+    .setInputFiles({ name, mimeType: 'image/jpeg', buffer: source });
   const tile = page.getByRole('button', { name: name + 'を開く', exact: true });
   await expect(tile).toBeVisible();
   await page.reload();
@@ -37,9 +37,23 @@ test('48MP HEICを変換せず追加し、JPEGで閲覧して元バイトを取�
   expect((await readFile(path)).equals(source)).toBe(true);
   await page.goto('/');
   await add();
+  for (const mime of ['image/heic', 'image/heif']) {
+    await page.goto('/');
+    await add();
+    await page.locator('input[type=file]').setInputFiles({
+      name: 'unsupported.heif',
+      mimeType: mime,
+      buffer: Buffer.from('unsupported fixture'),
+    });
+    await expect(
+      page.getByText('JPEG・PNG・WebPの静止画像を選んでください', {
+        exact: true,
+      }),
+    ).toBeVisible();
+  }
   await page.locator('input[type=file]').setInputFiles({
-    name: 'broken.heic',
-    mimeType: 'image/heic',
+    name: 'broken.jpg',
+    mimeType: 'image/jpeg',
     buffer: Buffer.from('broken fixture'),
   });
   await expect(

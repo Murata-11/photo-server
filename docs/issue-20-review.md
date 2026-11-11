@@ -1,5 +1,7 @@
 # Issue #20 仕様レビュー
 
+> 履歴資料：Issue #35のPO指示でHEIC/HEIF対応を撤回した。現在の仕様・構成は[製品仕様](product.md)と[Issue #35](issue-35-review.md)を参照。以下はPR #32・#34当時の記録。
+
 - Issue：<https://github.com/Murata-11/photo-server/issues/20>
 - 基準main：`4b89809`（Issue #22の実装PR #31まで反映）。
 - 状態：仕様PR #32（ba4bd62）はPOが承認・main dfb8a2fへマージ済み。「マージした。readyにして」「実装に進んで」に基づきready・in-progressを付与し実装。実装結果は[検証記録](issue-20-validation.md)を参照。以下は仕様段階のレビュー方法も含む。

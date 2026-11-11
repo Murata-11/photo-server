@@ -1,5 +1,7 @@
 # Issue #20 実装検証
 
+> 履歴資料：Issue #35のPO指示でHEIC/HEIF対応を撤回した。現在の仕様・構成は[製品仕様](product.md)と[Issue #35](issue-35-review.md)を参照。以下はPR #32・#34当時の記録。
+
 - 仕様PR：#32 / ba4bd62。POの「マージした。readyにして」「実装に進んで」に基づく実装。
 - 基準main：52007af。実装ブランチ：issue/20-heic-upload。
 - 本番データ・本番設定は変更していない。合成画像と破棄可能な専用PostgreSQLのみ使用。

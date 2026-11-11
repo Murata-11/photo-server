@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, it, expect, vi } from 'vitest';
+import { beforeAll, afterAll, it, expect } from 'vitest';
 import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -9,7 +9,6 @@ beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'image-core-test-'));
 });
 afterAll(async () => {
-  vi.unstubAllEnvs();
   await rm(dir, { recursive: true, force: true });
 });
 async function fixture(name: string, bytes: Buffer) {
@@ -65,7 +64,7 @@ it('accepts 60MP and rejects over 60MP before saving output', async () => {
       });
   }
 }, 15000);
-it('distinguishes corrupt bytes, MIME spoofing and missing HEIC runtime', async () => {
+it('distinguishes corrupt bytes and MIME spoofing', async () => {
   const invalid = await fixture('broken', Buffer.from('not an image'));
   await expect(
     processImage(invalid, join(dir, 'bad.jpg'), 'image/jpeg'),
@@ -78,17 +77,13 @@ it('distinguishes corrupt bytes, MIME spoofing and missing HEIC runtime', async 
       .png()
       .toBuffer(),
   );
-  for (const mime of ['image/jpeg', 'image/heic'])
+  for (const mime of ['image/jpeg', 'image/webp'])
     await expect(
       processImage(png, join(dir, 'spoof.jpg'), mime),
     ).rejects.toMatchObject({
       status: 422,
       message: '画像の形式と内容が一致しません',
     });
-  vi.stubEnv('HEIF_INSPECTOR', join(dir, 'missing-inspector'));
-  await expect(
-    processImage(invalid, join(dir, 'heic.jpg'), 'image/heic'),
-  ).rejects.toMatchObject({ status: 503 });
 });
 it('writes bounded result records for worker success and validation failure', async () => {
   const png = await fixture(

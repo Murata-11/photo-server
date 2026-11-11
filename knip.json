@@ -20,7 +20,6 @@
         "src/**/*.stories.{ts,tsx}",
         "tests/**/*.spec.ts",
         "playwright.config.ts",
-        "playwright.heic.config.ts",
         "vite.config.ts"
       ],
       "project": [

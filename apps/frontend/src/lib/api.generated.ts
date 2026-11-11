@@ -161,7 +161,7 @@ export interface components {
        * @example 画像の形式と内容が一致しません
        * @example 複数画像・アニメーション・動画には対応していません
        * @example 画像を読み込めません。破損していない画像を選んでください
-       * @example JPEG・PNG・WebP・HEICの静止画像を選んでください
+       * @example JPEG・PNG・WebPの静止画像を選んでください
        * @example 画像を処理できませんでした。時間をおいて再試行してください
        */
       message: string;
@@ -284,7 +284,7 @@ export interface operations {
         'multipart/form-data': {
           /**
            * Format: binary
-           * @description JPEG/PNG/WebP/HEICの静止画像、1枚50MiB（52,428,800バイト）以下、 幅×高さが60,000,000以下（上限を含む）。 MIMEはimage/jpeg・image/png・image/webp・image/heic・image/heif。 HEIC/HEIFはHEVCの独立した主画像1枚のみ。AVIF、画像シーケンス、動画は対象外。 主画像に従属するサムネイル・補助画像は独立写真として取り込まない。 MIMEと実際の画像形式を照合し、拡張子だけで信頼しない。 元バイト列・元形式を保持し、表示用は向きを反映したメタデータなしのJPEG。
+           * @description JPEG/PNG/WebPの静止画像、1枚50MiB（52,428,800バイト）以下、 幅×高さが60,000,000以下（上限を含む）。 MIMEはimage/jpeg・image/png・image/webp。HEIC/HEIF・AVIF・動画は未対応。 MIMEと実際の画像形式を照合し、拡張子だけで信頼しない。 元バイト列・元形式を保持し、表示用は向きを反映したメタデータなしのJPEG。
            */
           file: string;
         };
@@ -342,7 +342,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description 未対応のMIMEまたは画像コーデック（HEIF内のHEVC静止画以外を含む） */
+      /** @description 未対応のMIME。JPEG/PNG/WebPの静止画像のみ対応。 */
       415: {
         headers: {
           [name: string]: unknown;
