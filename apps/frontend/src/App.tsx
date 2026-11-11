@@ -76,7 +76,8 @@ function PhotoApp() {
     [filter, setFilter] = useState('すべて'),
     [showInfo, setShowInfo] = useState(false),
     [displayName, setDisplayName] = useState(''),
-    [editingAlbumPhoto, setEditingAlbumPhoto] = useState<Photo | null>(null);
+    [editingAlbumPhoto, setEditingAlbumPhoto] = useState<Photo | null>(null),
+    [albumEditorOpen, setAlbumEditorOpen] = useState(false);
   const navigate = useNavigate(),
     location = useLocation(),
     fileInput = useRef<HTMLInputElement>(null);
@@ -106,6 +107,8 @@ function PhotoApp() {
     setMobileMenu(false);
     setFilter('すべて');
     setShowInfo(false);
+    setAlbumEditorOpen(false);
+    setEditingAlbumPhoto(null);
   }, [location.pathname]);
   async function update(photo: Photo, body: Parameters<typeof api.update>[1]) {
     try {
@@ -424,7 +427,7 @@ function PhotoApp() {
     const next = siblings[index + 1];
     useEffect(() => {
       function key(e: KeyboardEvent) {
-        if (editingAlbumPhoto || e.defaultPrevented) return;
+        if (albumEditorOpen || e.defaultPrevented) return;
         if (e.key === 'Escape') navigate(photo?.deleted ? '/trash' : '/');
         if (e.key === 'ArrowRight' && next) navigate('/photo/' + next.id);
         if (e.key === 'ArrowLeft' && previous)
@@ -481,6 +484,19 @@ function PhotoApp() {
               <a href={photo.originalUrl} download={photo.name}>
                 <Download size={20} />
               </a>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="アルバムに追加・解除"
+              title="アルバムに追加・解除"
+              data-album-editor-trigger
+              onClick={() => {
+                setEditingAlbumPhoto(photo);
+                setAlbumEditorOpen(true);
+              }}
+            >
+              <FolderHeart size={20} />
             </Button>
             <Button
               variant="ghost"
@@ -566,14 +582,6 @@ function PhotoApp() {
                 <span>ほか{photo.albums.length - 3}件</span>
               )}
             </div>
-            <button
-              type="button"
-              className="album-edit-button"
-              data-album-editor-trigger
-              onClick={() => setEditingAlbumPhoto(photo)}
-            >
-              アルバムを編集
-            </button>
             <small>撮影日時・位置情報は元ファイルに保持しています。</small>
           </aside>
         )}
@@ -869,12 +877,13 @@ function PhotoApp() {
       </Dialog>
       {editingAlbumPhoto && (
         <AlbumEditor
+          key={editingAlbumPhoto.id}
+          open={albumEditorOpen}
           photo={editingAlbumPhoto}
           names={albumNames}
           onPhotos={setPhotos}
           onClose={() => {
-            setEditingAlbumPhoto(null);
-            setShowInfo(true);
+            setAlbumEditorOpen(false);
           }}
         />
       )}

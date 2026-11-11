@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -10,92 +11,140 @@ import type { components } from './lib/api.generated';
 type Photo = components['schemas']['Photo'];
 export function AlbumEditor({
   photo,
+  open = true,
   names,
   onPhotos,
   onClose,
 }: {
   photo: Photo;
+  open?: boolean;
   names: string[];
   onPhotos: (photos: Photo[]) => void;
   onClose: () => void;
 }) {
-  const [baseline, setBaseline] = useState(photo.albums);
   const [chosen, setChosen] = useState(photo.albums);
   const [query, setQuery] = useState('');
   const [onlyMember, setOnlyMember] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [discard, setDiscard] = useState(false);
-  const [needsRefresh, setNeedsRefresh] = useState(false);
-  // Freeze order for this editing session, including while searching or saving.
-  const [ordered] = useState(() =>
+  useEffect(() => {
+    if (open) {
+      setQuery('');
+      setOnlyMember(false);
+      setOrdered(
+        [...names].sort(
+          (a, b) =>
+            Number(chosen.includes(b)) - Number(chosen.includes(a)) ||
+            a.localeCompare(b, 'ja'),
+        ),
+      );
+      setAnchor(
+        document
+          .querySelector('[data-album-editor-trigger]')
+          ?.getBoundingClientRect(),
+      );
+    }
+  }, [open]);
+  const [pending, setPending] = useState<string[]>([]);
+  const [failures, setFailures] = useState<Record<string, boolean>>({});
+  const [refreshError, setRefreshError] = useState(false);
+  const active = useRef(new Set<string>());
+  const revision = useRef(0);
+  const failedRows = useRef(new Set<string>());
+  const mounted = useRef(true);
+  const isOpen = useRef(open);
+  isOpen.current = open;
+  useEffect(
+    () => () => {
+      mounted.current = false;
+    },
+    [],
+  );
+  const [anchor, setAnchor] = useState(() =>
+    document
+      .querySelector('[data-album-editor-trigger]')
+      ?.getBoundingClientRect(),
+  );
+  const [ordered, setOrdered] = useState(() =>
     [...names].sort(
       (a, b) =>
         Number(photo.albums.includes(b)) - Number(photo.albums.includes(a)) ||
         a.localeCompare(b, 'ja'),
     ),
   );
-  const added = chosen.filter((n) => !baseline.includes(n));
-  const removed = baseline.filter((n) => !chosen.includes(n));
-  const dirty = added.length + removed.length > 0;
-  function close() {
-    if (saving) return;
-    if (dirty) setDiscard(true);
-    else onClose();
-  }
-  async function save() {
-    setSaving(true);
-    setError('');
-    const succeeded: string[] = [],
-      failed: string[] = [];
-    let next = [...baseline];
-    for (const [name, adding] of [
-      ...added.map((n) => [n, true] as const),
-      ...removed.map((n) => [n, false] as const),
-    ]) {
-      try {
-        await (adding ? api.addAlbum : api.removeAlbum)(photo.id, name);
-        next = adding
-          ? [...new Set([...next, name])]
-          : next.filter((n) => n !== name);
-        succeeded.push(name);
-      } catch {
-        failed.push(name);
-      }
-    }
-    setBaseline(next);
+  async function refresh() {
+    const version = revision.current;
     try {
-      onPhotos(await api.list());
-      setNeedsRefresh(false);
-      if (!failed.length) {
-        onClose();
-        return;
+      const photos = await api.list();
+      if (version === revision.current && !active.current.size) {
+        const latest = photos.find((p) => p.id === photo.id);
+        if (latest)
+          setChosen((prev) => [
+            ...latest.albums.filter((n) => !failedRows.current.has(n)),
+            ...prev.filter((n) => failedRows.current.has(n)),
+          ]);
+        onPhotos(photos);
+        setRefreshError(false);
       }
     } catch {
-      setNeedsRefresh(true);
+      setRefreshError(true);
+      if (!mounted.current || !isOpen.current)
+        toast.error('最新のアルバム所属を取得できませんでした');
     }
-    setError(
-      failed.length
-        ? `${succeeded.length}件保存済み。${failed.length}件を保存・確認できませんでした：${failed.join('、')}。失敗分を再試行できます。`
-        : '変更は保存しましたが、最新情報を取得できませんでした。再取得してください。',
+  }
+  async function change(name: string, adding: boolean) {
+    if (active.current.has(name)) return;
+    active.current.add(name);
+    failedRows.current.delete(name);
+    revision.current++;
+    setPending([...active.current]);
+    setFailures((prev) => {
+      return Object.fromEntries(
+        Object.entries(prev).filter(([key]) => key !== name),
+      );
+    });
+    setChosen((prev) =>
+      adding ? [...new Set([...prev, name])] : prev.filter((n) => n !== name),
     );
-    setSaving(false);
+    try {
+      await (adding ? api.addAlbum : api.removeAlbum)(photo.id, name);
+    } catch {
+      setChosen((prev) =>
+        adding ? prev.filter((n) => n !== name) : [...new Set([...prev, name])],
+      );
+      failedRows.current.add(name);
+      setFailures((prev) => ({ ...prev, [name]: adding }));
+      if (!mounted.current || !isOpen.current)
+        toast.error(
+          `${name}の所属を保存・確認できませんでした。再度開いて確認してください。`,
+        );
+    } finally {
+      active.current.delete(name);
+      setPending([...active.current]);
+      if (!active.current.size) await refresh();
+    }
   }
   const visible = ordered.filter(
     (n) =>
-      (!onlyMember || chosen.includes(n)) &&
+      (!onlyMember ||
+        chosen.includes(n) ||
+        pending.includes(n) ||
+        n in failures) &&
       n.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
   );
   return (
     <Dialog
-      open
+      open={open}
       onOpenChange={(open) => {
-        if (!open) close();
+        if (!open) onClose();
       }}
     >
       <DialogContent
         className="album-editor"
-        closeDisabled={saving}
+        style={
+          {
+            '--album-anchor-top': `${Math.min(anchor?.bottom ?? 120, window.innerHeight * 0.35) + 8}px`,
+            '--album-anchor-right': `${anchor?.right ?? window.innerWidth - 16}px`,
+          } as React.CSSProperties
+        }
         onCloseAutoFocus={(e) => {
           e.preventDefault();
           requestAnimationFrame(() =>
@@ -106,29 +155,26 @@ export function AlbumEditor({
         }}
         onEscapeKeyDown={(e) => {
           e.preventDefault();
-          close();
+          onClose();
         }}
         onPointerDownOutside={(e) => {
           e.preventDefault();
-          close();
+          onClose();
         }}
       >
         <header className="album-editor-header">
-          <DialogTitle className="dialog-title">アルバムを編集</DialogTitle>
+          <DialogTitle className="dialog-title">
+            アルバムに追加・解除
+          </DialogTitle>
           <DialogDescription>
-            この写真の所属を選び、変更を保存してください。
+            チェックを変更すると自動で保存します。
           </DialogDescription>
-          <div className="album-editor-photo">
-            <img src={photo.src} alt="" />
-            <span>{photo.name}</span>
-          </div>
           <label>
             アルバムを検索
             <input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              disabled={saving}
             />
           </label>
           <div
@@ -140,7 +186,6 @@ export function AlbumEditor({
               type="button"
               aria-pressed={!onlyMember}
               onClick={() => setOnlyMember(false)}
-              disabled={saving}
             >
               すべて
             </button>
@@ -148,18 +193,13 @@ export function AlbumEditor({
               type="button"
               aria-pressed={onlyMember}
               onClick={() => setOnlyMember(true)}
-              disabled={saving}
             >
               所属中
             </button>
             <span>{chosen.length}件に所属</span>
           </div>
         </header>
-        <fieldset
-          className="album-editor-list"
-          disabled={saving}
-          aria-busy={saving}
-        >
+        <fieldset className="album-editor-list">
           <legend className="sr-only">所属アルバム</legend>
           {!names.length ? (
             <p>アルバムを作成すると追加できます。</p>
@@ -167,61 +207,41 @@ export function AlbumEditor({
             <p>該当するアルバムがありません</p>
           ) : (
             visible.map((name) => (
-              <label key={name}>
-                <input
-                  type="checkbox"
-                  checked={chosen.includes(name)}
-                  onChange={(e) =>
-                    setChosen((prev) =>
-                      e.target.checked
-                        ? [...prev, name]
-                        : prev.filter((n) => n !== name),
-                    )
-                  }
-                />
-                <span>{name}</span>
-              </label>
+              <div key={name} className="album-editor-row">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={chosen.includes(name)}
+                    disabled={pending.includes(name)}
+                    onChange={(e) => change(name, e.target.checked)}
+                  />
+                  <span>{name}</span>
+                </label>
+                {pending.includes(name) && <p role="status">保存中</p>}
+                {name in failures && (
+                  <div role="alert">
+                    <p>保存・確認できませんでした</p>
+                    <button
+                      type="button"
+                      aria-label={`${name}を再試行`}
+                      onClick={() => change(name, failures[name] === true)}
+                    >
+                      再試行
+                    </button>
+                  </div>
+                )}
+              </div>
             ))
           )}
         </fieldset>
-        <footer className="album-editor-footer">
-          {error && <p role="alert">{error}</p>}
-          {saving ? (
-            <p role="status">所属を保存しています</p>
-          ) : (
-            <p>
-              {added.length}件追加・{removed.length}件解除
-            </p>
-          )}
-          {discard ? (
-            <div>
-              <p>未保存の変更を破棄しますか？</p>
-              <button type="button" onClick={() => setDiscard(false)}>
-                編集を続ける
-              </button>
-              <button type="button" onClick={onClose}>
-                変更を破棄
-              </button>
-            </div>
-          ) : (
-            <div>
-              <button type="button" onClick={close} disabled={saving}>
-                キャンセル
-              </button>
-              <button
-                type="button"
-                onClick={save}
-                disabled={saving || (!dirty && !needsRefresh)}
-              >
-                {needsRefresh && !dirty
-                  ? '最新情報を再取得'
-                  : error
-                    ? '失敗分を再試行'
-                    : '変更を保存'}
-              </button>
-            </div>
-          )}
-        </footer>
+        {refreshError && (
+          <footer className="album-editor-footer">
+            <p role="alert">最新の所属を取得できませんでした</p>
+            <button type="button" onClick={refresh}>
+              最新情報を再取得
+            </button>
+          </footer>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -10,7 +10,7 @@ const meta = {
 } satisfies Meta<typeof App>;
 export default meta;
 type Story = StoryObj<typeof meta>;
-// 「写真の情報」を開く。「アルバムを編集」で開き、チェック変更後に「変更を保存」を押す。
+// 詳細ツールバーのアルバムアイコンで開く。チェック変更を即時保存する。
 export const Multiple: Story = { name: '複数所属・追加と解除' };
 export const Saving: Story = {
   name: '所属保存中',

@@ -75,12 +75,15 @@ test('検索、アルバム作成、写真のアルバム変更', async ({ page 
     .click();
   await page.getByRole('button', { name: '写真の情報' }).click();
   await page
-    .getByRole('button', { name: 'アルバムを編集', exact: true })
+    .getByRole('button', { name: 'アルバムに追加・解除', exact: true })
     .click();
   await page
     .getByRole('checkbox', { name: 'テストの思い出', exact: true })
     .check();
-  await page.getByRole('button', { name: '変更を保存', exact: true }).click();
+  await expect(
+    page.getByRole('checkbox', { name: 'テストの思い出', exact: true }),
+  ).toBeEnabled();
+  await page.getByRole('button', { name: '閉じる', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('button', { name: '戻る', exact: true }).click();
   await page.getByRole('link', { name: 'アルバム', exact: true }).click();
@@ -249,19 +252,18 @@ test('PC上のiPhone 16専用Storyも実幅393×852でアプリを操作でき�
 });
 
 for (const width of [1280, 393]) {
-  test(`独立したアルバム編集と大量アルバム ${width}`, async ({ page }) => {
+  test(`ツールバーから即時保存と大量アルバム ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 852 });
-    const url = (id: string) =>
-      '/iframe.html?id=' +
-      encodeURIComponent('issue-21-複数アルバム--' + id) +
-      '&viewMode=story';
-    async function open(id: string) {
-      await page.goto(url(id));
-      await page.getByRole('button', { name: '写真の情報' }).click();
+    const open = async (id: string) => {
+      await page.goto(
+        '/iframe.html?id=' +
+          encodeURIComponent('issue-21-複数アルバム--' + id) +
+          '&viewMode=story',
+      );
       await page
-        .getByRole('button', { name: 'アルバムを編集', exact: true })
+        .getByRole('button', { name: 'アルバムに追加・解除', exact: true })
         .click();
-    }
+    };
     await open('multiple');
     const first = page.getByRole('checkbox', {
       name: '秋の小旅行',
@@ -269,69 +271,80 @@ for (const width of [1280, 393]) {
     });
     await first.focus();
     await first.press('Space');
-    await expect(
-      page.getByText('0件追加・1件解除', { exact: true }),
-    ).toBeVisible();
-    await page.getByRole('searchbox', { name: 'アルバムを検索' }).fill('空');
-    await page
-      .getByRole('checkbox', { name: '空のアルバム', exact: true })
-      .check();
-    await page.getByRole('searchbox').fill('');
-    await expect(first).not.toBeChecked();
-    await page.getByRole('button', { name: 'キャンセル', exact: true }).click();
-    await expect(page.getByText('未保存の変更を破棄しますか？')).toBeVisible();
-    await page.getByRole('button', { name: '編集を続ける' }).click();
-    await page.getByRole('button', { name: '変更を保存' }).click();
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    await page
-      .getByRole('button', { name: 'アルバムを編集', exact: true })
-      .click();
+    await expect(first).toBeEnabled();
     await expect(first).not.toBeChecked();
     await expect(
       page.getByRole('checkbox', { name: '海のある休日', exact: true }),
     ).toBeChecked();
+    await expect(page.getByRole('button', { name: '変更を保存' })).toHaveCount(
+      0,
+    );
+    await page.getByRole('searchbox').fill('空');
+    await page
+      .getByRole('checkbox', { name: '空のアルバム', exact: true })
+      .click();
+    await expect(
+      page.getByRole('checkbox', { name: '空のアルバム', exact: true }),
+    ).toBeEnabled();
     await page.getByRole('button', { name: '閉じる', exact: true }).click();
+    await page
+      .getByRole('button', { name: 'アルバムに追加・解除', exact: true })
+      .click();
+    await expect(first).not.toBeChecked();
+    await expect(
+      page.getByRole('checkbox', { name: '空のアルバム', exact: true }),
+    ).toBeChecked();
     await open('saving');
     await first.click();
-    await page.getByRole('button', { name: '変更を保存' }).click();
-    await expect(
-      page.getByText('所属を保存しています', { exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole('status')).toContainText('保存中');
     await expect(first).toBeDisabled();
+    await expect(
+      page.getByRole('checkbox', { name: '海のある休日', exact: true }),
+    ).toBeEnabled();
+    await page.getByRole('button', { name: '閉じる', exact: true }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await open('error');
     await first.click();
-    await page.getByRole('button', { name: '変更を保存' }).click();
     await expect(page.getByRole('alert')).toContainText(
-      '1件を保存・確認できませんでした',
+      '保存・確認できませんでした',
     );
-    await expect(first).not.toBeChecked();
+    await expect(first).toBeChecked();
+    await page.getByRole('button', { name: '秋の小旅行を再試行' }).click();
+    await expect(page.getByRole('alert')).toBeVisible();
     await open('partial-failure');
     await first.click();
     await page
       .getByRole('checkbox', { name: '空のアルバム', exact: true })
-      .check();
-    await page.getByRole('button', { name: '変更を保存' }).click();
-    await expect(page.getByRole('alert')).toContainText('1件保存済み。1件');
+      .click();
+    await expect(page.getByRole('alert')).toBeVisible();
+    await expect(first).toBeChecked();
     await expect(
-      page.getByText('0件追加・1件解除', { exact: true }),
-    ).toBeVisible();
+      page.getByRole('checkbox', { name: '空のアルバム', exact: true }),
+    ).toBeEnabled();
+    await expect(
+      page.getByRole('checkbox', { name: '空のアルバム', exact: true }),
+    ).toBeChecked();
     await open('no-albums');
     await expect(
       page.getByText('アルバムを作成すると追加できます。'),
     ).toBeVisible();
     await open('trash');
     await first.click();
-    await page.getByRole('button', { name: '変更を保存' }).click();
-    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(first).toBeEnabled();
+    await expect(first).not.toBeChecked();
     await open('many-albums');
     const dialog = page.getByRole('dialog');
+    await page.screenshot({ path: '../../work/album-panel-' + width + '.png' });
     const box = await dialog.boundingBox();
-    expect(box && box.y >= 0 && box.y + box.height <= 853).toBeTruthy();
-    if (width === 393) expect(box?.height).toBe(852);
-    const list = page.getByRole('group', { name: '所属アルバム' });
-    expect(await list.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(
-      true,
-    );
+    expect(
+      box && box.y >= 0 && box.y + box.height <= 853 && box.height < 600,
+    ).toBeTruthy();
+    if (width === 393) expect(box && Math.round(box.y + box.height)).toBe(852);
+    expect(
+      await page
+        .getByRole('group', { name: '所属アルバム' })
+        .evaluate((el) => el.scrollHeight > el.clientHeight),
+    ).toBe(true);
     await page.getByRole('searchbox').fill('とても長い');
     await expect(page.getByRole('checkbox')).toHaveCount(1);
     expect(
@@ -340,14 +353,10 @@ for (const width of [1280, 393]) {
     await page.getByRole('searchbox').fill('');
     await page.getByRole('button', { name: '所属中', exact: true }).click();
     await expect(page.getByRole('checkbox')).toHaveCount(8);
-    await page.getByRole('checkbox').first().click();
     await page.keyboard.press('Escape');
-    await expect(page.getByText('未保存の変更を破棄しますか？')).toBeVisible();
-    await page.getByRole('button', { name: '変更を破棄' }).click();
     await expect(dialog).toHaveCount(0);
     await expect(
       page.getByRole('heading', { name: '湖畔の朝', exact: true }),
     ).toBeVisible();
-    await expect(page.getByText('ほか5件', { exact: true })).toBeVisible();
   });
 }

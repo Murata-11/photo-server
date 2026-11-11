@@ -79,13 +79,13 @@ describe('photo application interactions', () => {
     );
     await user.click(button('写真の情報'));
     expect(screen.getByText('追加日（UTC）')).toBeTruthy();
-    await user.click(button('アルバムを編集'));
+    await user.click(button('アルバムに追加・解除'));
     await user.click(screen.getByRole('checkbox', { name: '空のアルバム' }));
-    expect(api.addAlbum).not.toHaveBeenCalled();
-    await user.click(button('変更を保存'));
+
     await waitFor(() =>
       expect(api.addAlbum).toHaveBeenCalledWith('1', '空のアルバム'),
     );
+    await user.click(button('閉じる'));
     await user.click(button('写真を削除'));
     await user.click(button('キャンセル'));
     await user.click(button('写真を削除'));
