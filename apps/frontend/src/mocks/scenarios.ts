@@ -72,7 +72,7 @@ export const thumbnailPhoto: HttpResponseResolver = () =>
   new HttpResponse(null, { status: 404 });
 
 // Review fixtures only. The production API and DB migration are a later PR.
-let membershipMode: 'normal' | 'saving' | 'error' = 'normal';
+let membershipMode: 'normal' | 'saving' | 'error' | 'partial' = 'normal';
 export function membershipFixture(
   next: typeof membershipMode,
   empty = false,
@@ -93,7 +93,10 @@ export function membershipFixture(
 }
 const changeMembership: HttpResponseResolver = async ({ request, params }) => {
   await delay(membershipMode === 'saving' ? 60000 : 180);
-  if (membershipMode === 'error')
+  if (
+    membershipMode === 'error' ||
+    (membershipMode === 'partial' && request.method === 'DELETE')
+  )
     return HttpResponse.json(
       { message: '所属を保存できませんでした' },
       { status: 500 },
@@ -121,3 +124,14 @@ const changeMembership: HttpResponseResolver = async ({ request, params }) => {
 };
 export const addPhotoAlbum = changeMembership;
 export const removePhotoAlbum = changeMembership;
+
+export function manyAlbumsFixture() {
+  membershipFixture('normal');
+  albums = Array.from(
+    { length: 120 },
+    (_, i) => `思い出アルバム${String(i + 1).padStart(3, '0')}`,
+  );
+  albums.push('とても長いアルバム名'.repeat(8));
+  const first = photos[0];
+  if (first) first.albums = albums.slice(0, 8);
+}

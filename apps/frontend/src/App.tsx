@@ -1,3 +1,4 @@
+import { AlbumEditor } from './AlbumEditor';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import {
   MemoryRouter,
@@ -75,8 +76,7 @@ function PhotoApp() {
     [filter, setFilter] = useState('すべて'),
     [showInfo, setShowInfo] = useState(false),
     [displayName, setDisplayName] = useState(''),
-    [membershipSaving, setMembershipSaving] = useState(false),
-    [membershipError, setMembershipError] = useState('');
+    [editingAlbumPhoto, setEditingAlbumPhoto] = useState<Photo | null>(null);
   const navigate = useNavigate(),
     location = useLocation(),
     fileInput = useRef<HTMLInputElement>(null);
@@ -424,6 +424,7 @@ function PhotoApp() {
     const next = siblings[index + 1];
     useEffect(() => {
       function key(e: KeyboardEvent) {
+        if (editingAlbumPhoto || e.defaultPrevented) return;
         if (e.key === 'Escape') navigate(photo?.deleted ? '/trash' : '/');
         if (e.key === 'ArrowRight' && next) navigate('/photo/' + next.id);
         if (e.key === 'ArrowLeft' && previous)
@@ -553,49 +554,26 @@ function PhotoApp() {
             <p>撮影情報</p>
             <strong>{photo.location}</strong>
             <p>アルバム</p>
-            <fieldset disabled={membershipSaving} aria-busy={membershipSaving}>
-              <legend>所属アルバム</legend>
-              {!photo.albums.length && <p>アルバムなし</p>}
-              {!albumNames.length && <p>アルバムを作成すると追加できます。</p>}
-              {albumNames.map((name) => (
-                <label
-                  key={name}
-                  style={{
-                    display: 'flex',
-                    gap: 8,
-                    minHeight: 44,
-                    alignItems: 'center',
-                    overflowWrap: 'anywhere',
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={photo.albums.includes(name)}
-                    onChange={async (e) => {
-                      const adding = e.target.checked;
-                      setMembershipSaving(true);
-                      setMembershipError('');
-                      try {
-                        await (adding ? api.addAlbum : api.removeAlbum)(
-                          photo.id,
-                          name,
-                        );
-                        setPhotos(await api.list());
-                      } catch {
-                        setMembershipError(
-                          '所属を保存・確認できませんでした。再読み込みして確認してください。',
-                        );
-                      } finally {
-                        setMembershipSaving(false);
-                      }
-                    }}
-                  />
-                  {name}
-                </label>
-              ))}
-              {membershipSaving && <p role="status">所属を保存しています</p>}
-            </fieldset>
-            {membershipError && <p role="alert">{membershipError}</p>}
+            <div className="album-summary">
+              {!photo.albums.length ? (
+                <span>アルバムなし</span>
+              ) : (
+                photo.albums
+                  .slice(0, 3)
+                  .map((name) => <span key={name}>{name}</span>)
+              )}
+              {photo.albums.length > 3 && (
+                <span>ほか{photo.albums.length - 3}件</span>
+              )}
+            </div>
+            <button
+              type="button"
+              className="album-edit-button"
+              data-album-editor-trigger
+              onClick={() => setEditingAlbumPhoto(photo)}
+            >
+              アルバムを編集
+            </button>
             <small>撮影日時・位置情報は元ファイルに保持しています。</small>
           </aside>
         )}
@@ -889,6 +867,17 @@ function PhotoApp() {
           </div>
         </DialogContent>
       </Dialog>
+      {editingAlbumPhoto && (
+        <AlbumEditor
+          photo={editingAlbumPhoto}
+          names={albumNames}
+          onPhotos={setPhotos}
+          onClose={() => {
+            setEditingAlbumPhoto(null);
+            setShowInfo(true);
+          }}
+        />
+      )}
       <Dialog open={albumModal} onOpenChange={setAlbumModal}>
         <DialogContent>
           <DialogTitle className="dialog-title">新しいアルバム</DialogTitle>

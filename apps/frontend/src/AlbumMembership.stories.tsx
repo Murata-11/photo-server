@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { App } from './App';
-import { membershipFixture } from './mocks/scenarios';
+import { manyAlbumsFixture, membershipFixture } from './mocks/scenarios';
 const meta = {
   title: 'Issue 21/複数アルバム',
   component: App,
@@ -10,7 +10,7 @@ const meta = {
 } satisfies Meta<typeof App>;
 export default meta;
 type Story = StoryObj<typeof meta>;
-// 「写真の情報」を開く。保存中・失敗はチェックを変更して確認する。
+// 「写真の情報」を開く。「アルバムを編集」で開き、チェック変更後に「変更を保存」を押す。
 export const Multiple: Story = { name: '複数所属・追加と解除' };
 export const Saving: Story = {
   name: '所属保存中',
@@ -27,4 +27,13 @@ export const NoAlbums: Story = {
 export const Trash: Story = {
   name: 'ゴミ箱内で所属編集',
   beforeEach: () => membershipFixture('normal', false, true),
+};
+
+export const ManyAlbums: Story = {
+  name: '多数・長い名前のアルバム',
+  beforeEach: () => manyAlbumsFixture(),
+};
+export const PartialFailure: Story = {
+  name: '追加成功・解除失敗',
+  beforeEach: () => membershipFixture('partial'),
 };
