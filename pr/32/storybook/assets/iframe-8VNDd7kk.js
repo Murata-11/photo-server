@@ -1,0 +1,1 @@
+import{t as e}from"./iframe-BSaTFP-f.js";e();
