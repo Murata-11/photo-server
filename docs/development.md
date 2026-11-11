@@ -74,3 +74,9 @@ pnpm --filter @photo-server/frontend test:app
 ```
 
 PC/スマートフォンの48MP操作も通常の`test:app`へ統合した。Dockerのuploadジョブでは1GiB上限を確認し、48MP JPEG/PNG/WebP、60MP/50MiB境界、HEIC/HEIFの拒否、元バイト一致、過負荷と復帰、再起動保持を試験する。rootless Dockerでcgroupが使えない場合は強制上限下の検証をCIへ委ね、成功と推測しない。
+
+## 写真の一括ゴミ箱移動（Issue #26）
+
+`TEST_DATABASE_URL`の専用DBで実行する既存の結合テストに、一括移動の1/100枚境界、途中失敗の全件ロールバック、入力・認証・冪等性、所属／一括追加／削除／復元とのロック競合を含む。テスト専用トリガーを作成・削除するため、破棄可能DBのDDL権限が必要。
+
+通常の`pnpm --filter @photo-server/frontend test:app`でPC・スマートフォンの一括移動・確認とキャンセル・応答喪失後の再送・枚数／表紙・単一復元・再取得のみの再試行を確認する。実装と検証結果は[Issue #26検証記録](issue-26-validation.md)を参照。
