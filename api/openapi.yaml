@@ -121,6 +121,47 @@ paths:
                 deleted:
                   type: boolean
               additionalProperties: false
+  /api/photos/albums:
+    put:
+      operationId: addPhotosAlbum
+      description: 既存アルバムへ通常写真を一括追加する。全件を同一トランザクションで確定し、エラーでは全件変更しない。既存所属を保持し、追加済みは成功。再送は冪等。同一写真の追加・解除・ゴミ箱移動と直列化し、異なる所属を失わない。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [photoIds, name]
+              properties:
+                photoIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  uniqueItems: true
+                  items:
+                    type: string
+                    format: uuid
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  description: 既存アルバム名との完全一致。自動作成・トリムはしない。
+      responses:
+        '204':
+          description: 全件成功（追加済みを含む）。本文なし。所属・枚数・表紙を再取得する。
+        '400':
+          description: JSON・UUID・件数・重複ID・名前・未知フィールドが不正。変更なし。
+        '401':
+          description: Identity missing。変更なし。
+        '403':
+          description: Not allowed / CSRF。変更なし。
+        '404':
+          description: 写真またはアルバムが存在しない。変更なし。409より優先する。
+        '409':
+          description: ゴミ箱内写真を含む。変更なし。再取得して対象を選び直す。
+        '500':
+          description: Internal error。トランザクションは取り消す。応答喪失時は結果不明として安全に再送可能。
   /api/photos/{id}/albums:
     parameters:
       - name: id

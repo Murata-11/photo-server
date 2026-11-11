@@ -37,6 +37,14 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
     }),
+  addPhotosAlbum: (
+    body: operations['addPhotosAlbum']['requestBody']['content']['application/json'],
+  ) =>
+    request<undefined>('/api/photos/albums', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
   removeAlbum: (id: string, name: string) =>
     request<undefined>('/api/photos/' + encodeURIComponent(id) + '/albums', {
       method: 'DELETE',

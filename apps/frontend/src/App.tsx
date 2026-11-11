@@ -1,3 +1,4 @@
+import { BulkAlbumDialog } from './BulkAlbumDialog';
 import { AlbumEditor } from './AlbumEditor';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import {
@@ -72,6 +73,7 @@ function PhotoApp() {
     [albumName, setAlbumName] = useState(''),
     [newAlbums, setNewAlbums] = useState<string[]>([]),
     [selected, setSelected] = useState<string[]>([]),
+    [bulkAlbumOpen, setBulkAlbumOpen] = useState(false),
     [mobileMenu, setMobileMenu] = useState(false),
     [filter, setFilter] = useState('すべて'),
     [showInfo, setShowInfo] = useState(false),
@@ -303,6 +305,16 @@ function PhotoApp() {
               <X size={18} />
             </Button>
             <strong>{selected.length}枚を選択中</strong>
+            {!isTrash && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setBulkAlbumOpen(true)}
+              >
+                <FolderHeart size={16} />
+                アルバムに追加
+              </Button>
+            )}
             <Button
               variant="secondary"
               size="sm"
@@ -823,6 +835,21 @@ function PhotoApp() {
           ))}
         </nav>
       )}
+      <BulkAlbumDialog
+        open={bulkAlbumOpen}
+        onOpenChange={setBulkAlbumOpen}
+        photoIds={selected}
+        albums={newAlbums}
+        onSaved={() => setSelected([])}
+        onReload={async () => {
+          const [nextPhotos, nextAlbums] = await Promise.all([
+            api.list(),
+            api.albums(),
+          ]);
+          setPhotos(nextPhotos);
+          setNewAlbums(nextAlbums);
+        }}
+      />
       <Dialog open={upload} onOpenChange={setUpload}>
         <DialogContent>
           <DialogTitle className="dialog-title">思い出を追加</DialogTitle>
