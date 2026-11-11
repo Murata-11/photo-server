@@ -14,7 +14,7 @@
 
 ## Windows / Docker Desktop
 
-起動・停止・更新はREADMEのDocker Desktop手順に従う。構成は[ADR 0004](decisions/0004-docker-desktop.md)を参照。アプリは非rootで動作し、DBの準備完了後に初期DDLを適用して起動する。初期DDLは将来のスキーマ変更を行うものではない。
+起動・停止・更新はREADMEのDocker Desktop手順に従う。構成は[ADR 0004](decisions/0004-docker-desktop.md)を参照。アプリは非rootで動作し、DBの準備完了後に履歴付きDB移行を適用して起動する。移行失敗時はHTTPを起動しない。
 
 DBは`photo-db`の名前付きvolume、写真は`.env`の`PHOTO_STORAGE_PATH`で指定したホストフォルダーに保存する。起動前にフォルダーを作成し、Docker Desktopから書き込めることを確認する。従来の`PHOTO_DATA_DIR`はComposeのアプリでは使用しない。保存先変更時はアプリを停止し、旧`photo-files` volumeまたは旧フォルダーの全ファイルを新フォルダーへコピーする。表示・ダウンロードが成功するまで旧データを残す。既存写真の自動移行は行わず、移行時はDBと元写真・表示画像を一組として確認する。アプリを停止してからDBと写真フォルダーの整合したバックアップを取得する。Docker Desktopのデータリセットやvolume削除を停止手順として使わない。Windows上のTailscale Serveと2人の実端末による確認・復元訓練は本番開始前に実施する。
 
@@ -72,4 +72,38 @@ DBは`photo-db`の名前付きvolume、写真は`.env`の`PHOTO_STORAGE_PATH`で
 
 ## Issue #21の更新時
 
-複数所属への更新は破壊的なDB/API変更を伴う。[ADR 0005](decisions/0005-multiple-albums.md)の停止・整合バックアップ・一括更新・復旧方針を仕様レビューする。仕様PRだけを本番へ反映せず、後続実装と検証の完了後、POの本番承認を得て適用する。
+複数所属への更新は旧album列を削除する破壊的なDB/API変更を伴う。POの本番適用承認後だけ実行する。写真の書き込みを止め、DB・写真・旧コード・設定を一組で保持する。初回の移行には写真数に応じた停止時間とDBのDDLロックが必要。失敗時は全移行をロールバックしてアプリを起動しない。
+
+### 適用前のバックアップ（Windows PowerShell）
+
+以下は本番実行前のレビュー用手順。既存の設定でdbが起動済み、appだけ停止する。写真パスは実際のPHOTO_STORAGE_PATHへ置き換える。バックアップ先は空き容量と非公開のアクセス権を確認する。
+
+```powershell
+docker compose stop app
+$backupRoot = Join-Path (Get-Location) ("work/backup-issue21-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
+New-Item -ItemType Directory -Path $backupRoot
+git rev-parse HEAD | Out-File (Join-Path $backupRoot "old-commit.txt")
+Copy-Item .env (Join-Path $backupRoot ".env")
+docker compose exec -T db pg_dump -U photo -d photo -Fc -f /tmp/issue21-before.dump
+if ($LASTEXITCODE -ne 0) { throw "DBバックアップに失敗" }
+docker compose cp db:/tmp/issue21-before.dump (Join-Path $backupRoot "db.dump")
+if ($LASTEXITCODE -ne 0) { throw "DBバックアップ取得に失敗" }
+Copy-Item -LiteralPath "<実際のPHOTO_STORAGE_PATH>" -Destination (Join-Path $backupRoot "photos") -Recurse
+```
+
+DBのカスタム形式ダンプをPowerShellの標準出力リダイレクトで保存しない。コンテナ内でファイルを作り、compose cpで取得する。エラーがあれば更新せず、バックアップ一式の存在・容量・復元可能性を確認するまで進めない。バックアップは暗号化した別の保存先にも保持する。
+
+### 適用と確認
+
+1. アプリ停止中に旧コミットを記録し、承認された実装コミットを取得する。appとdbの永続領域を維持する。
+2. `docker compose up -d --build --wait` でアプリとDBを更新する。起動時にschema_migrationsの履歴とチェックサムを検証し、advisory lockの下で新規／既存DBを移行する。
+3. `docker compose ps` と `docker compose logs --tail 100 app` を確認する。移行エラーならappを停止して調査する。チェックサム不一致を履歴の手動編集で回避しない。
+4. 許可された2人で通常・ゴミ箱内の旧写真、未所属、空アルバム、複数所属の追加・解除、枚数・表紙・復元・元画像取得を確認する。旧ブラウザーのタブは再読み込みする。
+5. 更新後の書き込みを再開する前に確認結果を記録する。旧バックアップは削除しない。
+
+### 復旧
+
+- 新アプリを停止する。移行に失敗した場合も、DBの状態・適用履歴を確認してから旧版の再起動を判断する。
+- 移行がコミット済みなら旧アプリだけへの切り替えは行わない。移行前のdb.dumpを空の専用DBへpg_restore（--exit-on-error）し、対応する写真バックアップと旧コードで隔離して起動・元画像・旧所属・ゴミ箱を確認する。
+- 本番のDB／写真への切り替えは対象・影響をPOへ示し、別途承認を得る。更新後の書き込みがある場合、その変更を失う可能性を示す。復元先の接続先と写真パスを確認し、本番DBへ誤って復元しない。
+- 複数所属から単一所属へ自動縮退するdown migrationは提供しない。DB volume削除、down -v、履歴の手動改ざんで復旧しない。

@@ -1,6 +1,6 @@
 Project photo_server {
   database_type: 'PostgreSQL'
-  Note: 'ADR 0003の初期実装。実行SQLはapps/backend/src/schema.sql。既存の未適用レビュー案を具体化。'
+  Note: 'ADR 0005の複数所属。履歴付き移行はapps/backend/src/migrations、最新構造はschema.sql。'
 }
 Table albums {
   name text [pk, not null, note: '1〜100文字。名前で一意。空アルバムも保持する。']
@@ -15,10 +15,23 @@ Table photos {
   created_at timestamptz [not null, default: `now()`]
   favorite boolean [not null, default: false]
   deleted boolean [not null, default: false, note: 'ゴミ箱。期限なし、元画像取得・復元可能。物理消去なし。']
-  album text
   metadata jsonb [not null, note: 'EXIF解析状態、撮影現地日時、既知UTCオフセット、GPS。API非公開。未設定を推測で補わない。']
   indexes {
     (created_at, id) [name: 'photos_order']
   }
 }
-Ref: photos.album > albums.name [delete: restrict]
+Table photo_albums {
+  photo_id uuid [not null]
+  album_name text [not null]
+  indexes {
+    (photo_id, album_name) [pk]
+    (album_name, photo_id) [name: 'photo_albums_album']
+  }
+}
+Ref: photo_albums.photo_id > photos.id [delete: restrict]
+Ref: photo_albums.album_name > albums.name [delete: restrict]
+Table schema_migrations {
+  version integer [pk, not null]
+  checksum text [not null]
+  applied_at timestamptz [not null, default: `now()`]
+}

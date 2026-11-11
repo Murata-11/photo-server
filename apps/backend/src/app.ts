@@ -15,7 +15,7 @@ type Row = {
   created_at: Date;
   favorite: boolean;
   deleted: boolean;
-  album: string | null;
+  albums?: string[];
   media_type: string;
 };
 type Settings = {
@@ -26,6 +26,7 @@ type Settings = {
   devUser?: string;
 };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const memberships = `(SELECT COALESCE(array_agg(album_name ORDER BY album_name), ARRAY[]::text[]) FROM photo_albums WHERE photo_id=p.id)`;
 function view(row: Row) {
   return {
     id: row.id,
@@ -37,7 +38,7 @@ function view(row: Row) {
     location: '撮影日時・場所は未表示',
     favorite: row.favorite,
     deleted: row.deleted,
-    album: row.album ?? '',
+    albums: row.albums ?? [],
   };
 }
 function fail(
@@ -128,7 +129,7 @@ export function createApp(settings: Settings) {
   });
   app.get('/api/photos', async (c) => {
     const result = await settings.pool.query<Row>(
-      'SELECT * FROM photos ORDER BY created_at DESC, id DESC',
+      `SELECT p.*, ${memberships} AS albums FROM photos p ORDER BY created_at DESC, id DESC`,
     );
     return c.json(result.rows.map(view));
   });
@@ -245,34 +246,66 @@ export function createApp(settings: Settings) {
     const b = body as Record<string, unknown>;
     if (
       !Object.keys(b).length ||
-      Object.keys(b).some(
-        (k) => !['favorite', 'deleted', 'album'].includes(k),
-      ) ||
+      Object.keys(b).some((k) => !['favorite', 'deleted'].includes(k)) ||
       ('favorite' in b && typeof b.favorite !== 'boolean') ||
-      ('deleted' in b && typeof b.deleted !== 'boolean') ||
-      ('album' in b && (typeof b.album !== 'string' || b.album.length > 100))
+      ('deleted' in b && typeof b.deleted !== 'boolean')
     )
       fail(400, '変更内容が不正です');
-    if (b.album) {
-      const album = await settings.pool.query(
-        'SELECT name FROM albums WHERE name=$1',
-        [b.album],
-      );
-      if (!album.rowCount) fail(400, 'アルバムが見つかりません');
-    }
     const result = await settings.pool.query<Row>(
-      'UPDATE photos SET favorite=COALESCE($2,favorite), deleted=COALESCE($3,deleted), album=CASE WHEN $4::boolean THEN $5 ELSE album END WHERE id=$1 RETURNING *',
-      [
-        id,
-        b.favorite ?? null,
-        b.deleted ?? null,
-        'album' in b,
-        b.album || null,
-      ],
+      `UPDATE photos p SET favorite=COALESCE($2,favorite), deleted=COALESCE($3,deleted) WHERE id=$1 RETURNING p.*, ${memberships} AS albums`,
+      [id, b.favorite ?? null, b.deleted ?? null],
     );
     const row = result.rows[0];
     if (!row) fail(404, '写真が見つかりません');
     return c.json(view(row));
+  });
+  app.on(['PUT', 'DELETE'], '/api/photos/:id/albums', async (c) => {
+    const id = c.req.param('id');
+    if (!uuid.test(id)) fail(400, '写真IDが不正です');
+    const body = await json(c.req.raw);
+    if (
+      !body ||
+      typeof body !== 'object' ||
+      Array.isArray(body) ||
+      Object.keys(body).join() !== 'name' ||
+      !('name' in body) ||
+      typeof body.name !== 'string' ||
+      !body.name.length ||
+      Array.from(body.name).length > 100
+    )
+      fail(400, 'アルバム名が不正です');
+    const name = body.name;
+    const client = await settings.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const photo = await client.query(
+        'SELECT id FROM photos WHERE id=$1 FOR UPDATE',
+        [id],
+      );
+      if (!photo.rowCount) fail(404, '写真が見つかりません');
+      const album = await client.query(
+        'SELECT name FROM albums WHERE name=$1 FOR KEY SHARE',
+        [name],
+      );
+      if (!album.rowCount) fail(404, 'アルバムが見つかりません');
+      if (c.req.method === 'PUT')
+        await client.query(
+          'INSERT INTO photo_albums(photo_id,album_name) VALUES($1,$2) ON CONFLICT DO NOTHING',
+          [id, name],
+        );
+      else
+        await client.query(
+          'DELETE FROM photo_albums WHERE photo_id=$1 AND album_name=$2',
+          [id, name],
+        );
+      await client.query('COMMIT');
+      return c.body(null, 204);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   });
   for (const variant of ['original', 'thumbnail'] as const)
     app.get(`/api/photos/:id/${variant}`, async (c) => {

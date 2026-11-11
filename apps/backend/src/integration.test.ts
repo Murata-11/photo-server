@@ -62,13 +62,31 @@ beforeAll(async () => {
     .toBuffer();
 });
 beforeEach(async () => {
-  await pool.query('TRUNCATE photos,albums');
+  await pool.query('TRUNCATE photo_albums,photos,albums');
   app = createApp({ pool, dataDir, origin, users });
 });
 afterAll(async () => {
   await pool.end();
   if (dataDir) await rm(dataDir, { recursive: true, force: true });
 });
+function membership(id: string, name: string, method = 'PUT', user = users[0]) {
+  return request(
+    `/api/photos/${id}/albums`,
+    method,
+    JSON.stringify({ name }),
+    user,
+    { 'Content-Type': 'application/json' },
+  );
+}
+async function album(name: string) {
+  expect(
+    (
+      await request('/api/albums', 'POST', JSON.stringify({ name }), users[0], {
+        'Content-Type': 'application/json',
+      })
+    ).status,
+  ).toBe(200);
+}
 describe('authenticated photo application with real PostgreSQL and files', () => {
   it('rejects missing, unknown and Funnel identities for every resource', async () => {
     const photo = await add();
@@ -181,7 +199,7 @@ describe('authenticated photo application with real PostgreSQL and files', () =>
       ).status,
     ).toBe(409);
     for (const body of [
-      { favorite: true, album: '夏休み' },
+      { favorite: true },
       { deleted: true },
       { deleted: false },
     ])
@@ -196,12 +214,13 @@ describe('authenticated photo application with real PostgreSQL and files', () =>
           )
         ).status,
       ).toBe(200);
+    expect((await membership(photo.id, '夏休み')).status).toBe(204);
     app = createApp({ pool, dataDir, origin, users });
     expect(await (await request('/api/albums')).json()).toEqual(['夏休み']);
     expect(await (await request('/api/photos')).json()).toEqual([
       expect.objectContaining({
         favorite: true,
-        album: '夏休み',
+        albums: ['夏休み'],
         deleted: false,
       }),
     ]);
@@ -305,5 +324,154 @@ describe('authenticated photo application with real PostgreSQL and files', () =>
     expect(() =>
       createApp({ pool, dataDir, origin, users, devUser: 'unknown' }),
     ).toThrow();
+  });
+});
+
+describe('multiple album membership contract', () => {
+  it('keeps distinct concurrent additions, is idempotent, preserves files and survives reconnect', async () => {
+    const p = await add();
+    await album('A');
+    await album('B');
+    await album('Empty');
+    const responses = await Promise.all([
+      membership(p.id, 'A'),
+      membership(p.id, 'B', 'PUT', users[1]),
+    ]);
+    expect(responses.map((r) => r.status)).toEqual([204, 204]);
+    expect(await responses[0]?.text()).toBe('');
+    expect((await membership(p.id, 'A')).status).toBe(204);
+    expect((await pool.query('SELECT * FROM photo_albums')).rowCount).toBe(2);
+    const reconnected = database(url ?? '');
+    try {
+      const restarted = createApp({
+        pool: reconnected,
+        dataDir,
+        origin,
+        users,
+      });
+      const list = await restarted.request('/api/photos', {
+        headers: { 'Tailscale-User-Login': users[1] ?? '' },
+      });
+      expect(await list.json()).toEqual([
+        expect.objectContaining({ id: p.id, albums: ['A', 'B'] }),
+      ]);
+    } finally {
+      await reconnected.end();
+    }
+    expect((await membership(p.id, 'A', 'DELETE')).status).toBe(204);
+    expect((await membership(p.id, 'A', 'DELETE')).status).toBe(204);
+    expect(await (await request('/api/photos')).json()).toEqual([
+      expect.objectContaining({ albums: ['B'] }),
+    ]);
+    expect(await (await request('/api/albums')).json()).toEqual([
+      'A',
+      'B',
+      'Empty',
+    ]);
+    expect(
+      Buffer.from(await (await request(p.originalUrl)).arrayBuffer()),
+    ).toEqual(bytes);
+    for (const deleted of [true, false]) {
+      expect(
+        (
+          await request(
+            '/api/photos/' + p.id,
+            'PATCH',
+            JSON.stringify({ deleted, favorite: true }),
+          )
+        ).status,
+      ).toBe(200);
+      expect(await (await request('/api/photos')).json()).toEqual([
+        expect.objectContaining({ deleted, favorite: true, albums: ['B'] }),
+      ]);
+    }
+  });
+  it('serializes competing membership operations behind the photo lock', async () => {
+    const p = await add();
+    await album('A');
+    await album('B');
+    await membership(p.id, 'A');
+    const lock = await pool.connect();
+    await lock.query('BEGIN');
+    await lock.query('SELECT id FROM photos WHERE id=$1 FOR UPDATE', [p.id]);
+    const addA = membership(p.id, 'A'),
+      removeA = membership(p.id, 'A', 'DELETE'),
+      addB = membership(p.id, 'B', 'PUT', users[1]);
+    await lock.query('COMMIT');
+    lock.release();
+    expect(
+      (await Promise.all([addA, removeA, addB])).map((r) => r.status),
+    ).toEqual([204, 204, 204]);
+    const rows = await pool.query<{ album_name: string }>(
+      'SELECT album_name FROM photo_albums WHERE photo_id=$1',
+      [p.id],
+    );
+    expect(rows.rows.map((r) => r.album_name)).toContain('B');
+    expect(rows.rowCount).toBeLessThanOrEqual(2);
+  });
+  it('validates new endpoints, rejects old writes and protects both methods', async () => {
+    const p = await add();
+    await album('A');
+    const missing = '00000000-0000-0000-0000-000000000000';
+    for (const method of ['PUT', 'DELETE']) {
+      expect((await membership('bad', 'A', method)).status).toBe(400);
+      expect((await membership(missing, 'A', method)).status).toBe(404);
+      expect((await membership(p.id, 'missing', method)).status).toBe(404);
+      for (const body of [
+        '{',
+        'null',
+        '[]',
+        '{}',
+        '{"name":""}',
+        '{"name":1}',
+        '{"name":"A","extra":1}',
+        JSON.stringify({ name: 'x'.repeat(101) }),
+      ])
+        expect(
+          (await request(`/api/photos/${p.id}/albums`, method, body)).status,
+        ).toBe(400);
+      for (const [user, status] of [
+        [null, 401],
+        ['stranger', 403],
+      ] as const)
+        expect(
+          (
+            await request(
+              `/api/photos/${p.id}/albums`,
+              method,
+              '{"name":"A"}',
+              user,
+            )
+          ).status,
+        ).toBe(status);
+      expect(
+        (
+          await request(
+            `/api/photos/${p.id}/albums`,
+            method,
+            '{"name":"A"}',
+            users[0],
+            { Origin: 'https://attacker.test' },
+          )
+        ).status,
+      ).toBe(403);
+      expect(
+        (
+          await request(
+            `/api/photos/${p.id}/albums`,
+            method,
+            '{"name":"A"}',
+            users[0],
+            { 'X-Photo-Request': '' },
+          )
+        ).status,
+      ).toBe(403);
+    }
+    expect(
+      (await request('/api/photos/' + p.id, 'PATCH', '{"album":"A"}')).status,
+    ).toBe(400);
+    await request('/api/photos/' + p.id, 'PATCH', '{"deleted":true}');
+    expect((await membership(p.id, 'A')).status).toBe(204);
+    expect((await membership(p.id, 'A', 'DELETE')).status).toBe(204);
   });
 });

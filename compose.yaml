@@ -1,7 +1,6 @@
 services:
   app:
     build: .
-    command: ['sh', '-c', 'node dist/migrate.js && exec node dist/index.js']
     environment:
       DATABASE_URL: postgresql://photo:${POSTGRES_PASSWORD_URLENCODED:?Set POSTGRES_PASSWORD_URLENCODED in .env}@db:5432/photo
       APP_ORIGIN: ${APP_ORIGIN:?Set APP_ORIGIN in .env}
