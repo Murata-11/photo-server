@@ -1,7 +1,7 @@
 # photo-server
 
 **2人専用の写真共有アプリです。** Windows の Docker Desktop 向け手順と、Ubuntu の Docker Engine 向け手順を掲載しています。
-写真の追加・閲覧・ダウンロード、アルバム、お気に入り、ゴミ箱・復元に対応します。PC・スマートフォンから、Tailscale 経由で利用します。JPEG・PNG・WebPの静止画像に対応し、1枚50MB（50MiB）までアップロードできます。
+写真の追加・閲覧・ダウンロード、アルバム、お気に入り、ゴミ箱・復元に対応します。PC・スマートフォンから、Tailscale 経由で利用します。JPEG・PNG・WebP・HEIC（HEVC）の静止画像に対応し、1枚50MB（50MiB）・6,000万画素までアップロードできます。HEICも元ファイルを保持し、閲覧用JPEGを生成します。
 
 1. [構成](#1-構成)
 2. [Tailscale の設定](#2-tailscale-の設定)

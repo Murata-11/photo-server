@@ -20,6 +20,7 @@
         "src/**/*.stories.{ts,tsx}",
         "tests/**/*.spec.ts",
         "playwright.config.ts",
+        "playwright.heic.config.ts",
         "vite.config.ts"
       ],
       "project": [
@@ -30,7 +31,7 @@
       ]
     },
     "apps/backend": {
-      "entry": ["src/index.ts", "src/migrate.ts"],
+      "entry": ["src/index.ts", "src/migrate.ts", "src/image-worker.ts"],
       "project": ["src/**/*.ts"]
     }
   },

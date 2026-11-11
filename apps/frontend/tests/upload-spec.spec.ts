@@ -81,6 +81,6 @@ test('保存中・容量/形式の拒否・Escapeと通常アプリの互換', a
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('input[type=file]')).toHaveAttribute(
     'accept',
-    'image/jpeg,image/png,image/webp',
+    'image/jpeg,image/png,image/webp,image/heic,image/heif',
   );
 });

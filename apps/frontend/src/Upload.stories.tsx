@@ -5,12 +5,12 @@ const meta = {
   title: 'Issue 20/48MP・HEICアップロード',
   component: App,
   parameters: { layout: 'fullscreen' },
-  args: { uploadSpecPreview: true },
+  args: { initialUploadOpen: true },
   beforeEach: () => uploadFixture(),
 } satisfies Meta<typeof App>;
 export default meta;
 type Story = StoryObj<typeof meta>;
-// ファイルを選択すると各状態へ進む。通常起動のアップロード仕様は変更しない。
+// ファイルを選択すると各状態へ進む。実アプリと共通の表示・入力検証。
 export const Normal: Story = {};
 export const Saving: Story = { beforeEach: () => uploadFixture('saving') };
 export const PixelLimit: Story = { beforeEach: () => uploadFixture('pixels') };

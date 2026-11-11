@@ -5,9 +5,8 @@ import type { Pool } from 'pg';
 import { randomUUID, createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import sharp from 'sharp';
-import exifr from 'exifr';
-import { normalizeMetadata } from './metadata.js';
+import { imageProcessor } from './image-processor.js';
+import { ImageError, imageMessages } from './image-core.js';
 
 type Row = {
   id: string;
@@ -42,7 +41,7 @@ function view(row: Row) {
   };
 }
 function fail(
-  status: 400 | 401 | 403 | 404 | 409 | 413 | 415 | 422,
+  status: 400 | 401 | 403 | 404 | 409 | 413 | 415 | 422 | 503,
   message: string,
 ): never {
   throw new HTTPException(status, { message });
@@ -146,55 +145,25 @@ export function createApp(settings: Settings) {
     if (!file.size) fail(422, '空のファイルです');
     if (file.size > 50 * 1024 * 1024)
       fail(413, '1枚50MB以下の画像を選んでください');
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type))
-      fail(415, 'JPEG・PNG・WebPの画像を選んでください');
+    if (
+      ![
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'image/heic',
+        'image/heif',
+      ].includes(file.type)
+    )
+      fail(415, imageMessages.unsupported);
     const bytes = Buffer.from(await file.arrayBuffer());
-    let thumbnail: Buffer;
+    let processed;
     try {
-      const image = sharp(bytes, {
-        limitInputPixels: 40_000_000,
-        failOn: 'warning',
-      });
-      const info = await image.metadata();
-      const expected: Record<string, string> = {
-        jpeg: 'image/jpeg',
-        png: 'image/png',
-        webp: 'image/webp',
-      };
-      if (
-        !info.format ||
-        expected[info.format] !== file.type ||
-        (info.pages ?? 1) > 1
-      )
-        fail(422, '画像の形式と内容が一致しないか、アニメーション画像です');
-      thumbnail = await image
-        .rotate()
-        .resize({
-          width: 1600,
-          height: 1600,
-          fit: 'inside',
-          withoutEnlargement: true,
-        })
-        .jpeg({ quality: 85 })
-        .toBuffer();
+      processed = await imageProcessor.process(bytes, file.type);
     } catch (error) {
-      if (error instanceof HTTPException) throw error;
-      fail(422, '画像を読み込めません。破損していない画像を選んでください');
+      if (error instanceof ImageError) fail(error.status, error.message);
+      fail(503, imageMessages.busy);
     }
-    let metadata: Record<string, unknown>;
-    try {
-      const tags = await exifr.parse(bytes, {
-        reviveValues: false,
-        translateValues: false,
-      });
-      metadata = normalizeMetadata(tags);
-    } catch {
-      metadata = {
-        timeStatus: 'failed',
-        locationStatus: 'failed',
-        parserVersion: 'exifr@7.1.3',
-      };
-    }
+    const { thumbnail, metadata } = processed;
     const id = randomUUID();
     const filename =
       Array.from(file.name, (ch) =>

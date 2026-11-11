@@ -58,7 +58,7 @@ gitleaks dir --redact --no-banner .
 
 PR、mainへのpush、手動実行で起動する。pnpm/action-setupがpackageManagerの固定バージョンを導入し、setup-nodeはpnpmストアをキャッシュする。依存導入は `pnpm install --frozen-lockfile` とする。パスによる除外はしない。同一ブランチの古い実行はキャンセルする。権限はcontents:read、checkoutの認証情報は保持しない。
 
-qualityとsecretsの両方がsuccessの場合だけ、最終ジョブ `dod-check` を成功とする。失敗・スキップ・キャンセルは合格にしない。quality内のコマンドは最初の失敗で終了するため、修正後に再実行する。
+quality・secrets・heicのすべてがsuccessの場合だけ、最終ジョブ `dod-check` を成功とする。失敗・スキップ・キャンセルは合格にしない。quality内のコマンドは最初の失敗で終了するため、修正後に再実行する。
 
 GitHubのブランチ保護またはRulesetで、mainへのマージに最終ジョブ `dod-check` の成功を要求する。これはファイル追加だけでは有効にならず、管理者による設定が必要。ワークフローや除外設定の変更もレビュー対象とする。
 
@@ -101,3 +101,7 @@ Storybookの開発環境の型検査・静的ビルドは独立した `review-bu
 CIのKnipが`src/migrate.ts`を未使用と判定したため、バックエンドのサーバーと初期化CLIを明示的なentryとして登録する。ローカルにだけ存在する生成物の影響に依存しない設定にする。
 
 Gitleaksがgh-pages履歴のStorybook生成JavaScriptにある`o=e.childrens`をgeneric-api-keyとして誤検出した。`.gitleaks.toml`で既定ルールを継承し、この式の完全一致とStorybookのiframeバンドルまたは回帰検証スクリプトのパスが両方一致する場合だけ除外する。パス・ルール・コミット全体の除外は行わない。全Git履歴・作業ツリーのスキャンは維持する。`scripts/check-gitleaks.mjs`で、無関係なソースファイルには例外が適用されず、同じバンドルの認証情報テスト値も引き続き検出されることを検証する。
+
+## Issue #20のネイティブHEIC検証
+
+`heic`ジョブはDockerイメージをソースからビルドし、実HEVCデコードを検証する。1GiBのcgroup上限が有効なことを確認してから、専用PostgreSQL・合成素材でAPIの28シナリオ、再起動保持、PC／スマートフォンの実画面を試験する。一般のNode単独起動の`test:app`からHEIC試験を分離し、`playwright.heic.config.ts`で実行する。試験の省略を合格にはせず、heicジョブも最終dod-checkの必須条件に含める。
