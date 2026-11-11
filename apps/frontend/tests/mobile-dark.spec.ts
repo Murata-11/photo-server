@@ -119,6 +119,9 @@ test('専用iPhoneプレビューと320px幅でナビと最後の写真を確認
   ).toBe(true);
   const last = page.locator('.photo-tile').last();
   await last.scrollIntoViewIfNeeded();
+  const header = await page.locator('.topbar').boundingBox();
+  expect(header && header.y + header.height <= 0).toBeTruthy();
+  await expect(page.locator('.mobile-bottom-nav')).toBeVisible();
   const photo = await last.boundingBox();
   const nav = await page.locator('.mobile-bottom-nav').boundingBox();
   expect(photo && nav && photo.y + photo.height <= nav.y).toBeTruthy();
