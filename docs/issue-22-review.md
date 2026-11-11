@@ -2,7 +2,7 @@
 
 - 対象Issue：<https://github.com/Murata-11/photo-server/issues/22>
 - 基準main：`4cab547eaf4a3103080a2a5a424fed2f93d0d2f7`。先行Issue #21の実装PR #28はマージ済み。
-- 状態：方針合意済み、対象コミットの仕様承認・マージ・ready付与前。
+- 状態：仕様PR #29（`90bf897`）はPOが承認・マージ済み。mainは `74e59db`。2026-11-11の「Issue22をreadyにして」「では実装に進んで」に基づき実装着手。以下は仕様段階のレビュー記録。
 - 製品ルール：product.md第11節。API：openapi.yamlのPUT `/api/photos/albums` / `addPhotosAlbum`。画面：BulkAlbum.stories.tsx。
 
 ## レビュー方法
@@ -11,11 +11,11 @@
 
 Savingは保存中の進行表示と全操作の無効化、Errorは全件失敗と選択維持、Unknownはサーバー保存後の通信喪失（成功表示せず再送可能）、Refresh Errorは保存後の再取得のみ失敗（再取得ボタン）、No Albumsは作成案内を確認する。通常StoryをPC（1440×1000）とスマートフォン（393×852）で開き、Tab・Escapeも確認する。
 
-今回のUIは通常Appと共用する実コンポーネント。StorybookのみMSWが新APIを提供する。通常アプリで新APIを使う操作は、後続バックエンド実装まで利用できない。仕様PRを製品機能の完成として扱わない。
+UIは通常Appと共用する実コンポーネント。仕様PRではStorybookのみMSWが新APIを提供した。後続実装で実バックエンドを追加する。実装と実APIの検証結果は[実装検証記録](issue-22-validation.md)を参照。
 
-## readyまでに必要なこと
+## ready確認（完了）
 
-本PRの対象コミットをPOが仕様承認し、別途マージ承認のうえmainへマージする。Issue本文に対象範囲・対象外・受け入れ条件・仕様PR・対象コミット・承認記録・上記Story/API・検証分担を記録してreadyを再判定する。readyの付与はPO、またはPOが明示依頼したAIが行う。
+仕様PR #29はPOが承認・マージ済み。Issue本文に対象範囲・対象外・受け入れ条件・仕様PR・対象コミット・承認記録・上記Story/API・検証分担を記録し、2026-11-11のPOの明示依頼に基づきreadyを代理付与した。実装着手後はin-progressも追加。現在の状態はIssue #22を参照。
 
 ## ローカル検証結果（2026-11-11）
 

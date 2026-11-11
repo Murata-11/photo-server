@@ -237,6 +237,56 @@ export function createApp(settings: Settings) {
     if (!row) throw new Error('Missing saved row');
     return c.json(view(row));
   });
+  app.put('/api/photos/albums', async (c) => {
+    const body = await json(c.req.raw);
+    if (!body || typeof body !== 'object' || Array.isArray(body))
+      fail(400, '追加内容が不正です');
+    const b = body as Record<string, unknown>;
+    if (
+      Object.keys(b).length !== 2 ||
+      Object.keys(b).some((key) => !['photoIds', 'name'].includes(key)) ||
+      !Array.isArray(b.photoIds) ||
+      b.photoIds.length < 1 ||
+      b.photoIds.length > 100 ||
+      b.photoIds.some((id) => typeof id !== 'string' || !uuid.test(id)) ||
+      typeof b.name !== 'string' ||
+      !b.name.length ||
+      Array.from(b.name).length > 100
+    )
+      fail(400, '写真は1〜100枚、追加先は既存のアルバムを指定してください');
+    const ids = (b.photoIds as string[]).map((id) => id.toLowerCase()).sort();
+    if (new Set(ids).size !== ids.length) fail(400, '写真IDが重複しています');
+    const client = await settings.pool.connect();
+    try {
+      await client.query('BEGIN');
+      // All mutation paths lock the same photo rows. Ordered locking also
+      // prevents two overlapping batches in opposite input orders deadlocking.
+      const photos = await client.query<{ id: string; deleted: boolean }>(
+        'SELECT id,deleted FROM photos WHERE id=ANY($1::uuid[]) ORDER BY id FOR UPDATE',
+        [ids],
+      );
+      if (photos.rowCount !== ids.length) fail(404, '写真が見つかりません');
+      const album = await client.query(
+        'SELECT name FROM albums WHERE name=$1 FOR KEY SHARE',
+        [b.name],
+      );
+      if (!album.rowCount) fail(404, 'アルバムが見つかりません');
+      // Missing entities take precedence over trash conflicts.
+      if (photos.rows.some((photo) => photo.deleted))
+        fail(409, 'ゴミ箱内の写真が含まれています。選択を見直してください');
+      await client.query(
+        'INSERT INTO photo_albums(photo_id,album_name) SELECT id,$2 FROM unnest($1::uuid[]) AS id ON CONFLICT DO NOTHING',
+        [ids, b.name],
+      );
+      await client.query('COMMIT');
+      return c.body(null, 204);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  });
   app.patch('/api/photos/:id', async (c) => {
     const id = c.req.param('id');
     if (!uuid.test(id)) fail(400, '写真IDが不正です');
