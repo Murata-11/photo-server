@@ -16,3 +16,7 @@
 UIは既存Appを単独起動・Storybookで共用する。通常起動は実API、StorybookだけMSWを使用する。OpenAPIは`api/openapi.yaml`だけを正とし、型・クライアント・モックルートを生成する。フローとデータ保持は製品仕様、画面状態はStoryを参照。
 
 DBは[DB設計](database-design.md)、起動・検証は[README](../README.md)、運用上の未決事項は[運用手順](operations.md)を参照。Tailscale実端末・本番運用・復元訓練は今回のローカル検証で完了扱いにしない。
+
+## 複数アルバムの実装（Issue #21）
+
+[ADR 0005](decisions/0005-multiple-albums.md)に従い、所属を中間テーブルへ保存する。起動時に履歴付き移行を排他的に実行し、成功後にHTTPの待ち受けを開始する。実APIはOpenAPIの個別追加・解除契約へ適合する。適用・復旧は[運用手順](operations.md#issue-21の更新時)を参照。

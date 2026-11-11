@@ -2,7 +2,11 @@
 
 PostgreSQLをPC内Dockerで稼働させる方針はADR 0002、今回の具体化は[ADR 0003](decisions/0003-hono-implementation.md)を参照。
 
-関係図は[db/schema.dbml](../db/schema.dbml)、初期DDLは[apps/backend/src/schema.sql](../apps/backend/src/schema.sql)。`pnpm --filter @photo-server/backend migrate`で初期化する。初期DDLは再実行可能。既存テーブルの構造変更を自動適用するマイグレーションではないため、今後のスキーマ変更時にはバージョン付き移行を追加する。
+関係図は[db/schema.dbml](../db/schema.dbml)、最新構造の参照用DDLは[apps/backend/src/schema.sql](../apps/backend/src/schema.sql)。適用には `pnpm --filter @photo-server/backend migrate` を使う。実行対象は[バージョン付きSQL](../apps/backend/src/migrations/)であり、schema.sqlを既存DBへ直接流さない。
+
+起動時にも同じ移行処理を実行し、成功後だけHTTP待ち受けを開始する。専用接続のトランザクションとDB advisory lockで排他する。schema_migrationsに版・SQLのSHA-256・適用日時を保存し、未知の版や変更された適用済みSQLは拒否する。履歴なしの旧DBは列・型・NULL制約・主キーと既存所属を検証して採用し、想定外の構造や不正所属は停止する。新規DBも同じバージョン付きSQLを通す。移行全体が失敗した場合はDDL・コピー・履歴をまとめてロールバックする。
+
+photo_albumsの複合主キー(photo_id, album_name)で所属の重複を防止する。両列は写真・アルバムへの外部キーで、アルバムからの参照用索引も持つ。APIの追加・解除は写真行をFOR UPDATEでロックし、対象アルバムの存在確認と個別のINSERT／DELETEを同じトランザクションで行う。異なる所属の更新を置き換えない。
 
 写真は全利用者の共通領域。利用者の許可は環境設定の2人に限定し、DB行だけで認証しない。`photos`にファイル情報、更新可能な状態、非公開の抽出メタデータを保持する。`albums`は写真0枚のアルバムも保持する。写真の所属先は外部キーで検証する。元画像とサムネイルの保存キーはUUIDから決定し、DBのファイル名を保存パスへ使用しない。
 
@@ -12,6 +16,6 @@ DBとファイルの単一トランザクションはない。元画像・サム
 
 ゴミ箱は論理状態のみ。完全削除・期限・バックアップ消去は未実装。写真がDBにある間は、許可利用者がゴミ箱から閲覧・元画像取得・復元できる。
 
-## Issue #21の移行案
+## Issue #21の移行
 
-複数所属への設計・履歴付き移行・排他・復旧は[ADR 0005](decisions/0005-multiple-albums.md)でレビューする。本仕様PRでは実DDLと移行処理は変更しない。
+承認済みの設計・履歴付き移行・排他・復旧は[ADR 0005](decisions/0005-multiple-albums.md)。0002は通常・ゴミ箱内のすべての非NULL所属を中間テーブルへコピーし、双方向の差分がないことを確認してから旧album列を削除する。albums行と写真ファイルは変更しない。0001と0002の適用記録を保つため、適用済みSQLを後から編集しない。新たな変更には新しい版を追加する。

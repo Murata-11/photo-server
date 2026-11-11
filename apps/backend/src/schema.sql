@@ -11,7 +11,17 @@ CREATE TABLE IF NOT EXISTS photos (
  created_at timestamptz NOT NULL DEFAULT now(),
  favorite boolean NOT NULL DEFAULT false,
  deleted boolean NOT NULL DEFAULT false,
- album text REFERENCES albums(name),
  metadata jsonb NOT NULL
 );
 CREATE INDEX IF NOT EXISTS photos_order ON photos(created_at DESC, id DESC);
+CREATE TABLE IF NOT EXISTS photo_albums (
+ photo_id uuid NOT NULL REFERENCES photos(id),
+ album_name text NOT NULL REFERENCES albums(name),
+ PRIMARY KEY (photo_id, album_name)
+);
+CREATE INDEX IF NOT EXISTS photo_albums_album ON photo_albums(album_name, photo_id);
+CREATE TABLE IF NOT EXISTS schema_migrations (
+ version integer PRIMARY KEY,
+ checksum text NOT NULL,
+ applied_at timestamptz NOT NULL DEFAULT now()
+);

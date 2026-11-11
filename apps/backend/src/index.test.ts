@@ -2,9 +2,13 @@ import { afterEach, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   serve: vi.fn(() => ({ close: vi.fn((done: () => void) => done()) })),
   end: vi.fn(),
+  migrate: vi.fn(),
 }));
 vi.mock('@hono/node-server', () => ({ serve: mocks.serve }));
-vi.mock('./store.js', () => ({ database: () => ({ end: mocks.end }) }));
+vi.mock('./store.js', () => ({
+  database: () => ({ end: mocks.end }),
+  migrate: mocks.migrate,
+}));
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.resetModules();
@@ -46,4 +50,15 @@ it('binds production to loopback and closes database on shutdown', async () => {
   } finally {
     spy.mockRestore();
   }
+});
+
+it('does not serve when migration fails', async () => {
+  vi.stubEnv('DATABASE_URL', 'postgresql://fixture');
+  vi.stubEnv('APP_ORIGIN', 'https://example.test');
+  vi.stubEnv('ALLOWED_USERS', 'a,b');
+  vi.stubEnv('DEV_USER', '');
+  mocks.migrate.mockRejectedValueOnce(new Error('migration failed'));
+  await expect(import('./index.js')).rejects.toThrow('migration failed');
+  expect(mocks.serve).not.toHaveBeenCalled();
+  expect(mocks.end).toHaveBeenCalled();
 });

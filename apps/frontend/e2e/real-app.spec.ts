@@ -67,10 +67,55 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
     .last()
     .click();
   await tile.click();
-  await page.getByRole('button', { name: '写真の情報' }).click();
   await page
-    .getByRole('combobox', { name: 'アルバムに追加' })
-    .selectOption(album);
+    .getByRole('button', { name: 'アルバムに追加・解除', exact: true })
+    .click();
+  const check = page.getByRole('checkbox', { name: album, exact: true });
+  await check.click();
+  await expect(check).toBeEnabled();
+  await expect(check).toBeChecked();
+  await page.getByRole('button', { name: '閉じる', exact: true }).click();
+  await page.getByRole('button', { name: '戻る', exact: true }).click();
+  await page
+    .getByRole('link', { name: 'アルバム', exact: true })
+    .last()
+    .click();
+  await page
+    .getByRole('button', { name: 'アルバムを作成', exact: true })
+    .click();
+  const otherAlbum = album + '-別所属';
+  await page.getByRole('textbox', { name: 'アルバム名' }).fill(otherAlbum);
+  await page.getByRole('button', { name: '作成する', exact: true }).click();
+  await page
+    .getByRole('link', { name: /^フォト/ })
+    .last()
+    .click();
+  await tile.click();
+  await page
+    .getByRole('button', { name: 'アルバムに追加・解除', exact: true })
+    .click();
+  const secondCheck = page.getByRole('checkbox', {
+    name: otherAlbum,
+    exact: true,
+  });
+  await secondCheck.click();
+  await expect(secondCheck).toBeEnabled();
+  await expect(secondCheck).toBeChecked();
+  await expect(check).toBeChecked();
+  await check.click();
+  await expect(check).toBeEnabled();
+  await expect(check).not.toBeChecked();
+  await page.getByRole('button', { name: '閉じる', exact: true }).click();
+  await page.reload();
+  await tile.click();
+  await page
+    .getByRole('button', { name: 'アルバムに追加・解除', exact: true })
+    .click();
+  await expect(check).not.toBeChecked();
+  await expect(secondCheck).toBeChecked();
+  await check.click();
+  await expect(check).toBeEnabled();
+  await page.getByRole('button', { name: '閉じる', exact: true }).click();
   await page.getByRole('button', { name: '写真を削除', exact: true }).click();
   await page.getByRole('button', { name: 'ゴミ箱に移動', exact: true }).click();
   await expect(tile).toHaveCount(0);
@@ -79,12 +124,39 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
     await page.getByRole('button', { name: 'メニュー', exact: true }).click();
   await page.getByRole('link', { name: 'ゴミ箱', exact: true }).click();
   await tile.click();
+  await page
+    .getByRole('button', { name: 'アルバムに追加・解除', exact: true })
+    .click();
+  await expect(check).toBeChecked();
+  await expect(secondCheck).toBeChecked();
+  await page.getByRole('button', { name: '閉じる', exact: true }).click();
   await page.getByRole('button', { name: '復元', exact: true }).click();
   await page
     .getByRole('link', { name: /^フォト/ })
     .last()
     .click();
   await expect(tile).toBeVisible();
+  await page
+    .getByRole('link', { name: 'アルバム', exact: true })
+    .last()
+    .click();
+  for (const name of [album, otherAlbum]) {
+    const card = page
+      .getByRole('button', { name: new RegExp(name) })
+      .filter({ has: page.getByRole('heading', { name, exact: true }) });
+    await expect(card).toContainText('1枚の写真');
+    await expect(card.locator('img')).toHaveCount(1);
+    await card.click();
+    await expect(tile).toBeVisible();
+    await page
+      .getByRole('link', { name: 'アルバム', exact: true })
+      .last()
+      .click();
+  }
+  await page
+    .getByRole('link', { name: /^フォト/ })
+    .last()
+    .click();
   const search = page.getByRole('textbox', { name: '写真を検索' });
   await search.fill(filename);
   await expect(tile).toBeVisible();

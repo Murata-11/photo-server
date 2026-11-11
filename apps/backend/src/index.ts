@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { resolve } from 'node:path';
 import { createApp } from './app.js';
-import { database } from './store.js';
+import { database, migrate } from './store.js';
 const { DATABASE_URL, APP_ORIGIN, ALLOWED_USERS } = process.env;
 const DEV_USER = process.env.DEV_USER || undefined;
 if (!DATABASE_URL || !APP_ORIGIN || !ALLOWED_USERS)
@@ -13,6 +13,12 @@ if (origin.origin !== APP_ORIGIN || (!DEV_USER && origin.protocol !== 'https:'))
 if (DEV_USER && !['localhost', '127.0.0.1'].includes(origin.hostname))
   throw new Error('DEV_USERはローカル開発専用です');
 const pool = database(DATABASE_URL);
+try {
+  await migrate(pool);
+} catch (error) {
+  await pool.end();
+  throw error;
+}
 const app = createApp({
   pool,
   dataDir: resolve(process.env.PHOTO_DATA_DIR ?? '../../work/photo-data'),

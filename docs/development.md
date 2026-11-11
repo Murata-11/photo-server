@@ -53,3 +53,9 @@ Storybookの「アプリ / ひより」「スマートフォン / iPhone 16」�
 HTTP契約の正は[api/openapi.yaml](../api/openapi.yaml)。型・クライアント・MSWルートはOpenAPIから固定バージョンで生成し、直接編集しません。再生成後に差分がないことを確認します。[レビュー用Pages](review-pages.md)はStorybookとSwagger UIだけを公開し、バックエンド・写真保存領域・DBは配信しません。
 
 製品仕様は[docs/product.md](product.md)、設計は[docs/architecture.md](architecture.md)、DBは[docs/database-design.md](database-design.md)、運用は[docs/operations.md](operations.md)、開発手順は[docs/workflow.md](workflow.md)を参照してください。
+
+## DB移行の検証（Issue #21）
+
+起動時にも `migrate` と同じ履歴付きSQLを適用し、失敗時はHTTPを待ち受けません。参照用のschema.sqlを直接流す方法は使いません。`src/migrations` の適用済みSQLを編集せず、新たな変更は新しい版を追加します。移行SQLはLF改行で管理します。
+
+migrations.test.tsは `TEST_DATABASE_URL` の専用DB内にランダム名のスキーマを作成・削除して、新規／旧DBの移行、排他、再実行、途中失敗、履歴検証と参照DDLとの一致を確認します。テスト用DBの利用者にはスキーマ作成権限が必要です。通常の結合テストはphoto_albums・photos・albumsをTRUNCATEするため、必ず破棄可能なDBを指定してください。実API E2E・復元の結果は[検証記録](issue-21-validation.md)を参照してください。
