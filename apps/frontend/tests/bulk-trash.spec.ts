@@ -8,7 +8,26 @@ async function select(page: Page) {
     await page
       .getByRole('button', { name: name + 'を選択', exact: true })
       .click();
-  await page.getByRole('button', { name: 'ゴミ箱に移動', exact: true }).click();
+  const trigger = page.getByRole('button', {
+    name: 'ゴミ箱に移動',
+    exact: true,
+  });
+  await expect(trigger).toHaveText('');
+  const bar = await page.locator('.selection-bar').boundingBox();
+  const icon = await trigger.boundingBox();
+  expect(
+    bar &&
+      icon &&
+      icon.x + icon.width <= bar.x + bar.width &&
+      icon.x > bar.x + bar.width / 2 &&
+      icon.y - bar.y <= 8 &&
+      icon.width >= 44 &&
+      icon.height >= 44,
+  ).toBeTruthy();
+  await page.screenshot({
+    path: `../../work/issue26-selection-${page.viewportSize()?.width}.png`,
+  });
+  await trigger.click();
 }
 for (const viewport of [
   { width: 1440, height: 1000 },

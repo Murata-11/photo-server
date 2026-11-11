@@ -296,6 +296,18 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
         </div>
         {selected.length > 0 && (
           <div className="selection-bar">
+            {!isTrash && (
+              <Button
+                className="bulk-trash-trigger"
+                variant="ghost"
+                size="icon"
+                aria-label="ゴミ箱に移動"
+                title="ゴミ箱に移動"
+                onClick={() => setBulkTrashOpen(true)}
+              >
+                <Trash2 size={18} />
+              </Button>
+            )}
             <div className="selection-summary">
               <Button
                 variant="ghost"
@@ -333,17 +345,6 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
                 <Heart size={16} />
                 お気に入りに追加
               </Button>
-              {!isTrash && (
-                <Button
-                  className="bulk-trash-trigger"
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setBulkTrashOpen(true)}
-                >
-                  <Trash2 size={16} />
-                  ゴミ箱に移動
-                </Button>
-              )}
             </div>
           </div>
         )}
