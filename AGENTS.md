@@ -8,7 +8,7 @@
 
 - docs/specification-management.md：Storybook・OpenAPIのSSOTと変更手順
 - docs/product.md：目的、機能、受け入れ条件
-- docs/workflow.md：開発手順、承認の記録方法
+- docs/workflow.md：Issueの状態、ready判定、仕様合意からDraft PR作成までの運用のSSOT。Issue対応前に必ず読む
 - docs/architecture.md：システム構成と設計
 - docs/decisions/：重要な設計判断と承認状況
 - docs/operations.md：デプロイ、監視、バックアップ、復元
