@@ -1,6 +1,6 @@
 # Issue #26 仕様レビュー
 
-[Issue #26](https://github.com/Murata-11/photo-server/issues/26)の仕様提案。基準main `564ce51`。未承認で、ready付与・製品API実装・マージ・本番反映は含まない。
+[Issue #26](https://github.com/Murata-11/photo-server/issues/26)の仕様提案。基準main `564ce51`。仕様PR #39の最終コミット `3fdbc31` はPO承認・マージ済み（main `8cd8ff3`）。ready代理付与後の「ありがとう、実装に移って。」に基づき実装着手。以下は仕様段階の履歴で、実装結果は[検証記録](issue-26-validation.md)を参照。
 
 ## レビュー対象
 

@@ -198,6 +198,45 @@ export function createApp(settings: Settings) {
     if (!row) throw new Error('Missing saved row');
     return c.json(view(row));
   });
+  app.put('/api/photos/trash', async (c) => {
+    const body = await json(c.req.raw);
+    if (!body || typeof body !== 'object' || Array.isArray(body))
+      fail(400, '移動内容が不正です');
+    const b = body as Record<string, unknown>;
+    if (
+      Object.keys(b).join() !== 'photoIds' ||
+      !Array.isArray(b.photoIds) ||
+      b.photoIds.length < 1 ||
+      b.photoIds.length > 100 ||
+      b.photoIds.some((id) => typeof id !== 'string' || !uuid.test(id))
+    )
+      fail(400, '写真は1〜100枚を指定してください');
+    const ids = (b.photoIds as string[]).map((id) => id.toLowerCase()).sort();
+    if (new Set(ids).size !== ids.length) fail(400, '写真IDが重複しています');
+    const client = await settings.pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Share the ordered photo locks with album mutations. Never update part
+      // of a batch before all targets have been found and locked.
+      const photos = await client.query(
+        'SELECT id FROM photos WHERE id=ANY($1::uuid[]) ORDER BY id FOR UPDATE',
+        [ids],
+      );
+      if (photos.rowCount !== ids.length)
+        fail(404, '写真が存在しません。再取得して選び直してください');
+      await client.query(
+        'UPDATE photos SET deleted=true WHERE id=ANY($1::uuid[]) AND NOT deleted',
+        [ids],
+      );
+      await client.query('COMMIT');
+      return c.body(null, 204);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  });
   app.put('/api/photos/albums', async (c) => {
     const body = await json(c.req.raw);
     if (!body || typeof body !== 'object' || Array.isArray(body))
