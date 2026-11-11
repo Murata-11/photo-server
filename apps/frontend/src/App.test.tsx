@@ -19,6 +19,8 @@ vi.mock('./lib/api', () => ({
     create: vi.fn(),
     createAlbum: vi.fn(),
     update: vi.fn(),
+    addAlbum: vi.fn(),
+    removeAlbum: vi.fn(),
   },
 }));
 let photos: Photo[];
@@ -77,9 +79,9 @@ describe('photo application interactions', () => {
     );
     await user.click(button('写真の情報'));
     expect(screen.getByText('追加日（UTC）')).toBeTruthy();
-    await user.selectOptions(
-      screen.getByRole('combobox', { name: 'アルバムに追加' }),
-      '空のアルバム',
+    await user.click(screen.getByRole('checkbox', { name: '空のアルバム' }));
+    await waitFor(() =>
+      expect(api.addAlbum).toHaveBeenCalledWith('1', '空のアルバム'),
     );
     await user.click(button('写真を削除'));
     await user.click(button('キャンセル'));

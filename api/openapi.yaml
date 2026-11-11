@@ -120,9 +120,75 @@ paths:
                   type: boolean
                 deleted:
                   type: boolean
-                album:
-                  type: string
               additionalProperties: false
+  /api/photos/{id}/albums:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: addPhotoAlbum
+      description: 所属を1件追加。追加済みでも成功。他の所属は変更しない。 ゴミ箱内でも操作可能。異なる所属への操作は独立。同一所属はDB適用順で最終状態が決まる。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  description: 既存アルバム名との完全一致。自動作成・トリムはしない。
+      responses:
+        '204':
+          description: 成功。本文なし。所属・枚数・表紙を再取得する。
+        '400':
+          description: 不正なUUID・JSON・アルバム名・未知のフィールド
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '404':
+          description: 写真またはアルバムが存在しない（解除も同様）
+        '500':
+          description: Internal error
+    delete:
+      operationId: removePhotoAlbum
+      description: 所属を1件解除。未所属でも成功。写真と他の所属は変更しない。 ゴミ箱内でも操作可能。異なる所属への操作は独立。同一所属はDB適用順で最終状態が決まる。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  description: 既存アルバム名との完全一致。自動作成・トリムはしない。
+      responses:
+        '204':
+          description: 成功。本文なし。所属・枚数・表紙を再取得する。
+        '400':
+          description: 不正なUUID・JSON・アルバム名・未知のフィールド
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '404':
+          description: 写真またはアルバムが存在しない（解除も同様）
+        '500':
+          description: Internal error
   /api/albums:
     get:
       operationId: listAlbums
@@ -311,7 +377,7 @@ components:
         - location
         - favorite
         - deleted
-        - album
+        - albums
         - createdAt
         - originalUrl
       properties:
@@ -329,8 +395,14 @@ components:
           type: boolean
         deleted:
           type: boolean
-        album:
-          type: string
+        albums:
+          type: array
+          uniqueItems: true
+          description: 所属アルバム名。未所属は空配列。DBの名前順で返す。
+          items:
+            type: string
+            minLength: 1
+            maxLength: 100
         createdAt:
           type: string
           format: date-time

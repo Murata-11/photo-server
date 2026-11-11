@@ -75,8 +75,11 @@ test('検索、アルバム作成、写真のアルバム変更', async ({ page 
     .click();
   await page.getByRole('button', { name: '写真の情報' }).click();
   await page
-    .getByRole('combobox', { name: 'アルバムに追加' })
-    .selectOption('テストの思い出');
+    .getByRole('checkbox', { name: 'テストの思い出', exact: true })
+    .check();
+  await expect(
+    page.getByRole('checkbox', { name: 'テストの思い出', exact: true }),
+  ).toBeEnabled();
   await page.getByRole('button', { name: '戻る', exact: true }).click();
   await page.getByRole('link', { name: 'アルバム', exact: true }).click();
   await page.getByRole('button', { name: /テストの思い出/ }).click();
@@ -242,3 +245,76 @@ test('PC上のiPhone 16専用Storyも実幅393×852でアプリを操作でき�
     })),
   ).toEqual({ width: 393, height: 852 });
 });
+
+for (const width of [1280, 393]) {
+  test(`複数所属の追加解除と失敗状態 ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 852 });
+    const url = (id: string) =>
+      '/iframe.html?id=' +
+      encodeURIComponent('issue-21-複数アルバム--' + id) +
+      '&viewMode=story';
+    await page.goto(url('multiple'));
+    await page.getByRole('button', { name: '写真の情報' }).click();
+    const first = page.getByRole('checkbox', {
+      name: '秋の小旅行',
+      exact: true,
+    });
+    const second = page.getByRole('checkbox', {
+      name: '海のある休日',
+      exact: true,
+    });
+    await expect(first).toBeChecked();
+    await expect(second).toBeChecked();
+    await first.click();
+    await expect(first).toBeEnabled();
+    await expect(first).not.toBeChecked();
+    await expect(second).toBeChecked();
+    await first.check();
+    await expect(first).toBeEnabled();
+    await expect(first).toBeChecked();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.goto(url('saving'));
+    await page.getByRole('button', { name: '写真の情報' }).click();
+    await page
+      .getByRole('checkbox', { name: '秋の小旅行', exact: true })
+      .click();
+    await expect(
+      page.getByText('所属を保存しています', { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('checkbox', { name: '海のある休日', exact: true }),
+    ).toBeDisabled();
+    await page.goto(url('error'));
+    await page.getByRole('button', { name: '写真の情報' }).click();
+    await page
+      .getByRole('checkbox', { name: '秋の小旅行', exact: true })
+      .click();
+    await expect(page.getByRole('alert')).toBeVisible();
+    await expect(
+      page.getByRole('checkbox', { name: '秋の小旅行', exact: true }),
+    ).toBeChecked();
+    await page.goto(url('no-albums'));
+    await page.getByRole('button', { name: '写真の情報' }).click();
+    await expect(
+      page.getByText('アルバムを作成すると追加できます。'),
+    ).toBeVisible();
+    await page.goto(url('trash'));
+    await page.getByRole('button', { name: '写真の情報' }).click();
+    await expect(
+      page.getByRole('checkbox', { name: '秋の小旅行', exact: true }),
+    ).toBeChecked();
+    await page
+      .getByRole('checkbox', { name: '秋の小旅行', exact: true })
+      .click();
+    await expect(
+      page.getByRole('checkbox', { name: '秋の小旅行', exact: true }),
+    ).toBeEnabled();
+    await expect(
+      page.getByRole('checkbox', { name: '秋の小旅行', exact: true }),
+    ).not.toBeChecked();
+  });
+}

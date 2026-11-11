@@ -74,7 +74,9 @@ function PhotoApp() {
     [mobileMenu, setMobileMenu] = useState(false),
     [filter, setFilter] = useState('すべて'),
     [showInfo, setShowInfo] = useState(false),
-    [displayName, setDisplayName] = useState('');
+    [displayName, setDisplayName] = useState(''),
+    [membershipSaving, setMembershipSaving] = useState(false),
+    [membershipError, setMembershipError] = useState('');
   const navigate = useNavigate(),
     location = useLocation(),
     fileInput = useRef<HTMLInputElement>(null);
@@ -155,7 +157,7 @@ function PhotoApp() {
   }
   const active = photos.filter((p) => !p.deleted),
     albumNames = [
-      ...new Set([...active.map((p) => p.album).filter(Boolean), ...newAlbums]),
+      ...new Set([...photos.flatMap((p) => p.albums), ...newAlbums]),
     ];
   const isTrash = location.pathname === '/trash',
     isFavorite = location.pathname === '/favorites',
@@ -173,12 +175,12 @@ function PhotoApp() {
         ? p.deleted
         : !p.deleted &&
           (!isFavorite || p.favorite) &&
-          (!album || p.album === album),
+          (!album || p.albums.includes(album)),
     );
     const visible = base.filter(
       (p) =>
         (filter !== 'お気に入り' || p.favorite) &&
-        `${p.name} ${p.location} ${p.album}`
+        `${p.name} ${p.location} ${p.albums.join(' ')}`
           .toLowerCase()
           .includes(query.toLowerCase()),
     );
@@ -551,16 +553,49 @@ function PhotoApp() {
             <p>撮影情報</p>
             <strong>{photo.location}</strong>
             <p>アルバム</p>
-            <select
-              aria-label="アルバムに追加"
-              value={photo.album}
-              onChange={(e) => update(photo, { album: e.target.value })}
-            >
-              <option value="">アルバムなし</option>
+            <fieldset disabled={membershipSaving} aria-busy={membershipSaving}>
+              <legend>所属アルバム</legend>
+              {!photo.albums.length && <p>アルバムなし</p>}
+              {!albumNames.length && <p>アルバムを作成すると追加できます。</p>}
               {albumNames.map((name) => (
-                <option key={name}>{name}</option>
+                <label
+                  key={name}
+                  style={{
+                    display: 'flex',
+                    gap: 8,
+                    minHeight: 44,
+                    alignItems: 'center',
+                    overflowWrap: 'anywhere',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={photo.albums.includes(name)}
+                    onChange={async (e) => {
+                      const adding = e.target.checked;
+                      setMembershipSaving(true);
+                      setMembershipError('');
+                      try {
+                        await (adding ? api.addAlbum : api.removeAlbum)(
+                          photo.id,
+                          name,
+                        );
+                        setPhotos(await api.list());
+                      } catch {
+                        setMembershipError(
+                          '所属を保存・確認できませんでした。再読み込みして確認してください。',
+                        );
+                      } finally {
+                        setMembershipSaving(false);
+                      }
+                    }}
+                  />
+                  {name}
+                </label>
               ))}
-            </select>
+              {membershipSaving && <p role="status">所属を保存しています</p>}
+            </fieldset>
+            {membershipError && <p role="alert">{membershipError}</p>}
             <small>撮影日時・位置情報は元ファイルに保持しています。</small>
           </aside>
         )}
@@ -735,7 +770,7 @@ function PhotoApp() {
                 </div>
                 <div className="album-grid">
                   {albumNames.map((name) => {
-                    const cover = active.find((p) => p.album === name);
+                    const cover = active.find((p) => p.albums.includes(name));
                     return (
                       <button
                         className="album-card"
@@ -756,7 +791,7 @@ function PhotoApp() {
                           <ChevronRight size={18} />
                         </h2>
                         <p>
-                          {active.filter((p) => p.album === name).length}
+                          {active.filter((p) => p.albums.includes(name)).length}
                           枚の写真
                         </p>
                       </button>

@@ -32,11 +32,23 @@ it('executes generated client against the OpenAPI MSW routes', async () => {
     (
       await api.update(photo.id, {
         favorite: true,
-        album: '新規',
         deleted: true,
       })
     ).favorite,
   ).toBe(true);
+  await api.addAlbum(photo.id, '新規');
+  await api.addAlbum(photo.id, '新規');
+  expect((await api.list())[0]?.albums).toEqual(['新規']);
+  await api.createAlbum('別所属');
+  await api.addAlbum(photo.id, '別所属');
+  await api.removeAlbum(photo.id, '新規');
+  await api.removeAlbum(photo.id, '新規');
+  expect((await api.list())[0]?.albums).toEqual(['別所属']);
+  expect(await api.albums()).toContain('新規');
+  await api.removeAlbum(photo.id, '別所属');
+  expect((await api.list())[0]?.albums).toEqual([]);
+  await expect(api.addAlbum(photo.id, '不存在')).rejects.toThrow();
+  await expect(api.removeAlbum(photo.id, '不存在')).rejects.toThrow();
   expect((await api.list())[0]?.id).toBe(photo.id);
   await expect(api.update('missing', { favorite: true })).rejects.toThrow(
     '通信に失敗',
