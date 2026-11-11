@@ -238,6 +238,18 @@ describe('authenticated photo application with real PostgreSQL and files', () =>
     expect((await upload(Buffer.alloc(50 * 1024 * 1024 + 1))).status).toBe(413);
     expect((await upload(Buffer.alloc(51 * 1024 * 1024 + 1))).status).toBe(413);
   }, 15000);
+  it('rejects HEIC and HEIF uploads before decoding or inserting a photo', async () => {
+    for (const mime of ['image/heic', 'image/heif']) {
+      const response = await upload(bytes, mime, 'unsupported.heif');
+      expect(response.status).toBe(415);
+      expect(await response.json()).toMatchObject({
+        message: 'JPEG・PNG・WebPの静止画像を選んでください',
+      });
+    }
+    expect(
+      (await pool.query('SELECT count(*) AS count FROM photos')).rows[0].count,
+    ).toBe('0');
+  });
   it('validates real image content, fields, ids and albums', async () => {
     expect((await upload(Buffer.from('bad image'))).status).toBe(422);
     expect((await upload(bytes, 'image/jpeg')).status).toBe(422);

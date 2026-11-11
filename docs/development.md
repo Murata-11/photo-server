@@ -60,17 +60,17 @@ HTTP契約の正は[api/openapi.yaml](../api/openapi.yaml)。型・クライア�
 
 migrations.test.tsは `TEST_DATABASE_URL` の専用DB内にランダム名のスキーマを作成・削除して、新規／旧DBの移行、排他、再実行、途中失敗、履歴検証と参照DDLとの一致を確認します。テスト用DBの利用者にはスキーマ作成権限が必要です。通常の結合テストはphoto_albums・photos・albumsをTRUNCATEするため、必ず破棄可能なDBを指定してください。実API E2E・復元の結果は[検証記録](issue-21-validation.md)を参照してください。
 
-## Issue #20：HEICの開発と検証
+## 48MPの検証（Issue #35）
 
-HEICの正式な実行経路はDocker。Node単独起動でHEICも扱う場合は、ADR 0006のネイティブライブラリと`HEIF_INSPECTOR`を用意し、`pnpm --filter @photo-server/backend build:native-sharp`でsharpをソースビルドする。npm標準バイナリのHEIF表示だけをHEVC対応と扱わない。
+通常配布のsharpを使う。HEIC専用のシステムライブラリ、C++ビルド、HEIF_INSPECTORの設定は不要。通常の`pnpm install`・Docker buildで構築できる。
 
-通常の単体テスト・Storybook試験は従来どおり実行できる。HEICの実APIは専用DB・専用Dockerアプリを起動し、次をリポジトリルートで実行する（既定URLはループバック34020）。`HEIC_TEST_URL`でループバックの別ポートを指定できる。
+専用DB・専用アプリに対するAPI試験は、リポジトリルートで次を実行する。既定URLはループバック34020で、`UPLOAD_TEST_URL`で変更できる。テストは合成画像を使い、本番へは向けない。
 
 ```sh
-node apps/backend/scripts/check-heic.mjs
-pnpm --filter @photo-server/frontend exec playwright test --config playwright.heic.config.ts
-# テスト用コンテナを再起動した後
-node apps/backend/scripts/check-heic.mjs --verify-restart
+node apps/backend/scripts/check-upload.mjs
+# テスト用アプリを再起動後
+node apps/backend/scripts/check-upload.mjs --verify-restart
+pnpm --filter @photo-server/frontend test:app
 ```
 
-一般の`test:app`はJPEG等の通常経路、HEICは専用設定で実行する。CIのHEICジョブは実イメージをビルドし、1GiB上限がcgroupに適用されたことを確認してから、元画像一致・向き・補助画像・境界・偽装・複数画像／動画・4件同時要求・復帰・再起動・PC／スマートフォンを検証する。メモリピークは再起動前に取得する。cgroupのないDockerでフラグを指定しただけでは予算内の受け入れ検証と扱わない。
+PC/スマートフォンの48MP操作も通常の`test:app`へ統合した。Dockerのuploadジョブでは1GiB上限を確認し、48MP JPEG/PNG/WebP、60MP/50MiB境界、HEIC/HEIFの拒否、元バイト一致、過負荷と復帰、再起動保持を試験する。rootless Dockerでcgroupが使えない場合は強制上限下の検証をCIへ委ね、成功と推測しない。

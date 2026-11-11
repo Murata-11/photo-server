@@ -1,2 +1,1 @@
 apps/backend/src/migrations/*.sql text eol=lf
-native/*.sh text eol=lf

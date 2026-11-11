@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { App } from './App';
 import { uploadFixture } from './mocks/scenarios';
 const meta = {
-  title: 'Issue 20/48MP・HEICアップロード',
+  title: 'Issue 20/48MPアップロード',
   component: App,
   parameters: { layout: 'fullscreen' },
   args: { initialUploadOpen: true },

@@ -31,18 +31,14 @@ export const createPhoto: HttpResponseResolver = async ({ request }) => {
     corrupt: [422, '画像を読み込めません。破損していない画像を選んでください'],
     mismatch: [422, '画像の形式と内容が一致しません'],
     multiple: [422, '複数画像・アニメーション・動画には対応していません'],
-    unsupported: [415, 'JPEG・PNG・WebP・HEICの静止画像を選んでください'],
+    unsupported: [415, 'JPEG・PNG・WebPの静止画像を選んでください'],
     busy: [503, '画像を処理できませんでした。時間をおいて再試行してください'],
   } as const;
   if (uploadMode !== 'normal' && uploadMode !== 'saving') {
     const [status, message] = uploadError[uploadMode];
     return HttpResponse.json({ message }, { status });
   }
-  // HEICのデコードは模擬しない。表示画像のみ架空写真のJPEGで代用する。
-  const src =
-    file.type === 'image/heic' || file.type === 'image/heif'
-      ? '/photos/01.jpg'
-      : URL.createObjectURL(file);
+  const src = URL.createObjectURL(file);
   const p: Photo = {
     id: crypto.randomUUID(),
     src,
