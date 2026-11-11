@@ -1,11 +1,35 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+async function expectNoSearchLayout(page: Page) {
+  await expect(page.locator('.topbar')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: '写真を検索' })).toHaveCount(
+    0,
+  );
+  await expect(page.getByRole('button', { name: '検索をクリア' })).toHaveCount(
+    0,
+  );
+  const header = await page.locator('.topbar').boundingBox();
+  const contentTop = await page
+    .locator('.main-content')
+    .evaluate(
+      (element) => element.getBoundingClientRect().top + window.scrollY,
+    );
+  expect(header?.height).toBe(72);
+  expect(contentTop).toBeGreaterThanOrEqual(72);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+}
+
 test('実APIで追加・共有状態・アルバム・再読込・元ファイル・ゴミ箱・復元', async ({
   page,
 }, info) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
+  await expectNoSearchLayout(page);
   await page
     .getByRole('button', {
       name:
@@ -14,7 +38,7 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
     })
     .first()
     .click();
-  const filename = 'fixture-' + info.project.name + '.jpg';
+  const filename = `fixture-${info.project.name}-${Date.now()}.jpg`;
   const source = await readFile('public/photos/01.jpg');
   await page
     .locator('input[type=file]')
@@ -25,8 +49,10 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
   });
   await expect(tile).toBeVisible();
   await page.reload();
+  await expectNoSearchLayout(page);
   await expect(tile).toBeVisible();
   await tile.click();
+  await expectNoSearchLayout(page);
   await page
     .getByRole('button', { name: 'お気に入りを切り替え', exact: true })
     .click();
@@ -55,6 +81,7 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
     page.getByRole('heading', { name: album, exact: true }),
   ).toBeVisible();
   await page.reload();
+  await expectNoSearchLayout(page);
   await page
     .getByRole('link', { name: 'アルバム', exact: true })
     .last()
@@ -67,6 +94,7 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
     .last()
     .click();
   await tile.click();
+  await expectNoSearchLayout(page);
   await page
     .getByRole('button', { name: 'アルバムに追加・解除', exact: true })
     .click();
@@ -91,6 +119,7 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
     .last()
     .click();
   await tile.click();
+  await expectNoSearchLayout(page);
   await page
     .getByRole('button', { name: 'アルバムに追加・解除', exact: true })
     .click();
@@ -107,7 +136,9 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
   await expect(check).not.toBeChecked();
   await page.getByRole('button', { name: '閉じる', exact: true }).click();
   await page.reload();
+  await expectNoSearchLayout(page);
   await tile.click();
+  await expectNoSearchLayout(page);
   await page
     .getByRole('button', { name: 'アルバムに追加・解除', exact: true })
     .click();
@@ -123,7 +154,9 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
   if (info.project.name === 'iphone16')
     await page.getByRole('button', { name: 'メニュー', exact: true }).click();
   await page.getByRole('link', { name: 'ゴミ箱', exact: true }).click();
+  await expectNoSearchLayout(page);
   await tile.click();
+  await expectNoSearchLayout(page);
   await page
     .getByRole('button', { name: 'アルバムに追加・解除', exact: true })
     .click();
@@ -140,6 +173,7 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
     .getByRole('link', { name: 'アルバム', exact: true })
     .last()
     .click();
+  await expectNoSearchLayout(page);
   for (const name of [album, otherAlbum]) {
     const card = page
       .getByRole('button', { name: new RegExp(name) })
@@ -147,6 +181,7 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
     await expect(card).toContainText('1枚の写真');
     await expect(card.locator('img')).toHaveCount(1);
     await card.click();
+    await expectNoSearchLayout(page);
     await expect(tile).toBeVisible();
     await page
       .getByRole('link', { name: 'アルバム', exact: true })

@@ -67,7 +67,9 @@ test('実APIで一括追加・競合失敗・応答喪失・再取得失敗か�
     await page.getByRole('combobox').selectOption(album);
   };
   await page.goto('/');
-  await page.getByRole('textbox', { name: '写真を検索' }).fill(prefix);
+  await expect(page.getByRole('textbox', { name: '写真を検索' })).toHaveCount(
+    0,
+  );
   await select();
   await page.keyboard.press('Escape');
   await expect(page.getByText('2枚を選択中')).toBeVisible();
@@ -107,7 +109,9 @@ test('実APIで一括追加・競合失敗・応答喪失・再取得失敗か�
     other,
   );
   await page.reload();
-  await page.getByRole('textbox', { name: '写真を検索' }).fill(prefix);
+  await expect(page.getByRole('textbox', { name: '写真を検索' })).toHaveCount(
+    0,
+  );
   await select();
   let puts = 0;
   page.on('request', (req) => {
