@@ -1,12 +1,13 @@
 import { HttpResponse, delay, type HttpResponseResolver } from 'msw';
 import { seed, type Photo } from './data';
 let photos = structuredClone(seed);
-let albums: string[] = [];
+let albums: string[] = [...new Set(seed.flatMap((p) => p.albums))];
 let mode: 'normal' | 'empty' | 'error' | 'loading' = 'normal';
 export function resetStore(next: typeof mode = 'normal') {
   photos = next === 'empty' ? [] : structuredClone(seed);
   mode = next;
-  albums = [];
+  membershipMode = 'normal';
+  albums = next === 'empty' ? [] : [...new Set(seed.flatMap((p) => p.albums))];
 }
 export const listPhotos: HttpResponseResolver = async () => {
   await delay(mode === 'loading' ? 60000 : 180);
@@ -32,7 +33,7 @@ export const createPhoto: HttpResponseResolver = async ({ request }) => {
     location: '追加した写真',
     favorite: false,
     deleted: false,
-    album: '',
+    albums: [],
   };
   photos.unshift(p);
   return HttpResponse.json(p);
@@ -45,12 +46,9 @@ export const updatePhoto: HttpResponseResolver = async ({
   if (!photo) return new HttpResponse(null, { status: 404 });
   const body = (await request.json()) as Record<string, unknown>;
   if (
-    Object.keys(body).some(
-      (k) => !['favorite', 'deleted', 'album'].includes(k),
-    ) ||
+    Object.keys(body).some((k) => !['favorite', 'deleted'].includes(k)) ||
     ('favorite' in body && typeof body.favorite !== 'boolean') ||
-    ('deleted' in body && typeof body.deleted !== 'boolean') ||
-    ('album' in body && typeof body.album !== 'string')
+    ('deleted' in body && typeof body.deleted !== 'boolean')
   )
     return new HttpResponse(null, { status: 400 });
   Object.assign(photo, body);
@@ -59,7 +57,7 @@ export const updatePhoto: HttpResponseResolver = async ({
 
 export const listAlbums: HttpResponseResolver = () =>
   HttpResponse.json([
-    ...new Set([...albums, ...photos.map((p) => p.album).filter(Boolean)]),
+    ...new Set([...albums, ...photos.flatMap((p) => p.albums)]),
   ]);
 export const createAlbum: HttpResponseResolver = async ({ request }) => {
   const { name } = (await request.json()) as { name: string };
@@ -72,3 +70,68 @@ export const originalPhoto: HttpResponseResolver = () =>
   new HttpResponse(null, { status: 404 });
 export const thumbnailPhoto: HttpResponseResolver = () =>
   new HttpResponse(null, { status: 404 });
+
+// Review fixtures only. The production API and DB migration are a later PR.
+let membershipMode: 'normal' | 'saving' | 'error' | 'partial' = 'normal';
+export function membershipFixture(
+  next: typeof membershipMode,
+  empty = false,
+  trash = false,
+) {
+  resetStore();
+  membershipMode = next;
+  albums = empty ? [] : ['空のアルバム', '秋の小旅行', '海のある休日'];
+  const first = seed[0];
+  if (!first) throw new Error('Missing fixture');
+  photos = [
+    {
+      ...first,
+      albums: empty ? [] : ['秋の小旅行', '海のある休日'],
+      deleted: trash,
+    },
+  ];
+}
+const changeMembership: HttpResponseResolver = async ({ request, params }) => {
+  await delay(membershipMode === 'saving' ? 60000 : 180);
+  if (
+    membershipMode === 'error' ||
+    (membershipMode === 'partial' && request.method === 'DELETE')
+  )
+    return HttpResponse.json(
+      { message: '所属を保存できませんでした' },
+      { status: 500 },
+    );
+  const photo = photos.find((p) => p.id === params.id);
+  const body = (await request.json().catch(() => null)) as {
+    name?: unknown;
+  } | null;
+  if (
+    !body ||
+    Object.keys(body).join() !== 'name' ||
+    typeof body.name !== 'string' ||
+    !body.name.length ||
+    body.name.length > 100
+  )
+    return new HttpResponse(null, { status: 400 });
+  const known = new Set([...albums, ...photos.flatMap((p) => p.albums)]);
+  if (!photo || !known.has(body.name))
+    return new HttpResponse(null, { status: 404 });
+  photo.albums =
+    request.method === 'PUT'
+      ? [...new Set([...photo.albums, body.name])].sort()
+      : photo.albums.filter((n) => n !== body.name);
+  return new HttpResponse(null, { status: 204 });
+};
+export const addPhotoAlbum = changeMembership;
+export const removePhotoAlbum = changeMembership;
+
+export function manyAlbumsFixture() {
+  membershipFixture('normal');
+  albums = Array.from(
+    { length: 120 },
+    (_, i) => `思い出アルバム${String(i + 1).padStart(3, '0')}`,
+  );
+  albums.push('とても長いアルバム名'.repeat(8));
+  const first = photos[0];
+  if (first) first.albums = albums.slice(0, 8);
+}

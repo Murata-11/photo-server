@@ -18,6 +18,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
       body?.message || '通信に失敗しました。もう一度お試しください。',
     );
   }
+  if (response.status === 204) return undefined as T;
   return response.json();
 }
 export const api = {
@@ -27,6 +28,18 @@ export const api = {
   createAlbum: (name: string) =>
     request<Response<'createAlbum'>>('/api/albums', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    }),
+  addAlbum: (id: string, name: string) =>
+    request<undefined>('/api/photos/' + encodeURIComponent(id) + '/albums', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    }),
+  removeAlbum: (id: string, name: string) =>
+    request<undefined>('/api/photos/' + encodeURIComponent(id) + '/albums', {
+      method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
     }),

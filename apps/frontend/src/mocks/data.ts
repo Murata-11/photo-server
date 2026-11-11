@@ -30,5 +30,5 @@ export const seed: Photo[] = names.map((name, i) => ({
   location: i < 8 ? '長野' : i < 13 ? '鎌倉' : '京都',
   favorite: [0, 2, 5, 8, 12].includes(i),
   deleted: false,
-  album: i < 8 ? '秋の小旅行' : i < 13 ? '海のある休日' : '日々のかけら',
+  albums: [i < 8 ? '秋の小旅行' : i < 13 ? '海のある休日' : '日々のかけら'],
 }));

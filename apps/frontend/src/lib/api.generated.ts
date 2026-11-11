@@ -38,6 +38,26 @@ export interface paths {
     patch: operations['updatePhoto'];
     trace?: never;
   };
+  '/api/photos/{id}/albums': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    /** @description 所属を1件追加。追加済みでも成功。他の所属は変更しない。 ゴミ箱内でも操作可能。異なる所属への操作は独立。同一所属はDB適用順で最終状態が決まる。 */
+    put: operations['addPhotoAlbum'];
+    post?: never;
+    /** @description 所属を1件解除。未所属でも成功。写真と他の所属は変更しない。 ゴミ箱内でも操作可能。異なる所属への操作は独立。同一所属はDB適用順で最終状態が決まる。 */
+    delete: operations['removePhotoAlbum'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/albums': {
     parameters: {
       query?: never;
@@ -118,7 +138,8 @@ export interface components {
       location: string;
       favorite: boolean;
       deleted: boolean;
-      album: string;
+      /** @description 所属アルバム名。未所属は空配列。DBの名前順で返す。 */
+      albums: string[];
       /** Format: date-time */
       createdAt: string;
       originalUrl: string;
@@ -322,7 +343,6 @@ export interface operations {
         'application/json': {
           favorite?: boolean;
           deleted?: boolean;
-          album?: string;
         };
       };
     };
@@ -387,6 +407,130 @@ export interface operations {
       };
       /** @description Corrupt image */
       422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Internal error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  addPhotoAlbum: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description 既存アルバム名との完全一致。自動作成・トリムはしない。 */
+          name: string;
+        };
+      };
+    };
+    responses: {
+      /** @description 成功。本文なし。所属・枚数・表紙を再取得する。 */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description 不正なUUID・JSON・アルバム名・未知のフィールド */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Identity missing */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not allowed / CSRF */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description 写真またはアルバムが存在しない（解除も同様） */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Internal error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  removePhotoAlbum: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description 既存アルバム名との完全一致。自動作成・トリムはしない。 */
+          name: string;
+        };
+      };
+    };
+    responses: {
+      /** @description 成功。本文なし。所属・枚数・表紙を再取得する。 */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description 不正なUUID・JSON・アルバム名・未知のフィールド */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Identity missing */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not allowed / CSRF */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description 写真またはアルバムが存在しない（解除も同様） */
+      404: {
         headers: {
           [name: string]: unknown;
         };

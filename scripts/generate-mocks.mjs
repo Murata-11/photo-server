@@ -6,7 +6,9 @@ import SwaggerParser from '@apidevtools/swagger-parser';
 const spec = await SwaggerParser.bundle('api/openapi.yaml');
 const routes = Object.entries(spec.paths).flatMap(([path, methods]) =>
   Object.entries(methods)
-    .filter(([method]) => ['get', 'post', 'patch', 'delete'].includes(method))
+    .filter(([method]) =>
+      ['get', 'post', 'put', 'patch', 'delete'].includes(method),
+    )
     .map(
       ([method, operation]) =>
         `  http.${method}('*${path.replace(/\{(\w+)\}/g, ':$1')}', scenarios.${operation.operationId}),`,
@@ -27,6 +29,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const body = await response.json().catch(()=>null) as {message?:string} | null;
   throw new Error(body?.message || '通信に失敗しました。もう一度お試しください。');
  }
+ if (response.status === 204) return undefined as T;
  return response.json();
 }
 export const api = {
@@ -34,6 +37,8 @@ export const api = {
  me: () => request<Response<'getCurrentUser'>>('/api/me'),
  albums: () => request<Response<'listAlbums'>>('/api/albums'),
  createAlbum: (name: string) => request<Response<'createAlbum'>>('/api/albums',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})}),
+ addAlbum: (id:string, name:string) => request<undefined>('/api/photos/'+encodeURIComponent(id)+'/albums',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})}),
+ removeAlbum: (id:string, name:string) => request<undefined>('/api/photos/'+encodeURIComponent(id)+'/albums',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})}),
  update: (id:string,body:operations['updatePhoto']['requestBody']['content']['application/json']) => request<Response<'updatePhoto'>>('/api/photos/'+encodeURIComponent(id),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),
  create: (file:File) => {const body=new FormData();body.append('file',file);return request<Response<'createPhoto'>>('/api/photos',{method:'POST',body});}
 };

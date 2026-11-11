@@ -1,3 +1,4 @@
+import { AlbumEditor } from './AlbumEditor';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import {
   MemoryRouter,
@@ -74,7 +75,9 @@ function PhotoApp() {
     [mobileMenu, setMobileMenu] = useState(false),
     [filter, setFilter] = useState('すべて'),
     [showInfo, setShowInfo] = useState(false),
-    [displayName, setDisplayName] = useState('');
+    [displayName, setDisplayName] = useState(''),
+    [editingAlbumPhoto, setEditingAlbumPhoto] = useState<Photo | null>(null),
+    [albumEditorOpen, setAlbumEditorOpen] = useState(false);
   const navigate = useNavigate(),
     location = useLocation(),
     fileInput = useRef<HTMLInputElement>(null);
@@ -104,6 +107,8 @@ function PhotoApp() {
     setMobileMenu(false);
     setFilter('すべて');
     setShowInfo(false);
+    setAlbumEditorOpen(false);
+    setEditingAlbumPhoto(null);
   }, [location.pathname]);
   async function update(photo: Photo, body: Parameters<typeof api.update>[1]) {
     try {
@@ -155,7 +160,7 @@ function PhotoApp() {
   }
   const active = photos.filter((p) => !p.deleted),
     albumNames = [
-      ...new Set([...active.map((p) => p.album).filter(Boolean), ...newAlbums]),
+      ...new Set([...photos.flatMap((p) => p.albums), ...newAlbums]),
     ];
   const isTrash = location.pathname === '/trash',
     isFavorite = location.pathname === '/favorites',
@@ -173,12 +178,12 @@ function PhotoApp() {
         ? p.deleted
         : !p.deleted &&
           (!isFavorite || p.favorite) &&
-          (!album || p.album === album),
+          (!album || p.albums.includes(album)),
     );
     const visible = base.filter(
       (p) =>
         (filter !== 'お気に入り' || p.favorite) &&
-        `${p.name} ${p.location} ${p.album}`
+        `${p.name} ${p.location} ${p.albums.join(' ')}`
           .toLowerCase()
           .includes(query.toLowerCase()),
     );
@@ -422,6 +427,7 @@ function PhotoApp() {
     const next = siblings[index + 1];
     useEffect(() => {
       function key(e: KeyboardEvent) {
+        if (albumEditorOpen || e.defaultPrevented) return;
         if (e.key === 'Escape') navigate(photo?.deleted ? '/trash' : '/');
         if (e.key === 'ArrowRight' && next) navigate('/photo/' + next.id);
         if (e.key === 'ArrowLeft' && previous)
@@ -482,14 +488,33 @@ function PhotoApp() {
             <Button
               variant="ghost"
               size="icon"
+              aria-label="アルバムに追加・解除"
+              title="アルバムに追加・解除"
+              data-album-editor-trigger
+              onClick={() => {
+                setEditingAlbumPhoto(photo);
+                setAlbumEditorOpen(!albumEditorOpen);
+                setShowInfo(false);
+              }}
+            >
+              <FolderHeart size={20} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               aria-label="写真の情報"
-              onClick={() => setShowInfo(!showInfo)}
+              onClick={() => {
+                setShowInfo(!showInfo);
+                setAlbumEditorOpen(false);
+              }}
             >
               <Info size={20} />
             </Button>
             {photo.deleted ? (
               <Button
                 variant="secondary"
+                aria-label="復元"
+                title="復元"
                 onClick={async () => {
                   if (await update(photo, { deleted: false })) {
                     toast.success('写真を復元しました');
@@ -498,7 +523,7 @@ function PhotoApp() {
                 }}
               >
                 <RotateCcw size={16} />
-                復元
+                <span className="detail-action-label">復元</span>
               </Button>
             ) : (
               <Button
@@ -551,16 +576,18 @@ function PhotoApp() {
             <p>撮影情報</p>
             <strong>{photo.location}</strong>
             <p>アルバム</p>
-            <select
-              aria-label="アルバムに追加"
-              value={photo.album}
-              onChange={(e) => update(photo, { album: e.target.value })}
-            >
-              <option value="">アルバムなし</option>
-              {albumNames.map((name) => (
-                <option key={name}>{name}</option>
-              ))}
-            </select>
+            <div className="album-summary">
+              {!photo.albums.length ? (
+                <span>アルバムなし</span>
+              ) : (
+                photo.albums
+                  .slice(0, 3)
+                  .map((name) => <span key={name}>{name}</span>)
+              )}
+              {photo.albums.length > 3 && (
+                <span>ほか{photo.albums.length - 3}件</span>
+              )}
+            </div>
             <small>撮影日時・位置情報は元ファイルに保持しています。</small>
           </aside>
         )}
@@ -735,7 +762,7 @@ function PhotoApp() {
                 </div>
                 <div className="album-grid">
                   {albumNames.map((name) => {
-                    const cover = active.find((p) => p.album === name);
+                    const cover = active.find((p) => p.albums.includes(name));
                     return (
                       <button
                         className="album-card"
@@ -756,7 +783,7 @@ function PhotoApp() {
                           <ChevronRight size={18} />
                         </h2>
                         <p>
-                          {active.filter((p) => p.album === name).length}
+                          {active.filter((p) => p.albums.includes(name)).length}
                           枚の写真
                         </p>
                       </button>
@@ -854,6 +881,18 @@ function PhotoApp() {
           </div>
         </DialogContent>
       </Dialog>
+      {editingAlbumPhoto && (
+        <AlbumEditor
+          key={editingAlbumPhoto.id}
+          open={albumEditorOpen}
+          photo={editingAlbumPhoto}
+          names={albumNames}
+          onPhotos={setPhotos}
+          onClose={() => {
+            setAlbumEditorOpen(false);
+          }}
+        />
+      )}
       <Dialog open={albumModal} onOpenChange={setAlbumModal}>
         <DialogContent>
           <DialogTitle className="dialog-title">新しいアルバム</DialogTitle>
