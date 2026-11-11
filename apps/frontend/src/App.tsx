@@ -202,37 +202,40 @@ function PhotoApp({
     );
     const visible = base.filter((p) => filter !== 'お気に入り' || p.favorite);
     const dates = [...new Set(visible.map((p) => p.date))].sort().reverse();
+    const minimalPhotos = designPreview && !album && !isTrash && !isFavorite;
     return (
       <>
-        <div className="page-heading">
-          <div>
-            <div className="eyebrow">YOUR SHARED LIBRARY</div>
-            <h1>
-              {album || title}
-              {isFavorite && <Heart className="heading-heart" size={23} />}
-            </h1>
-            <p>
-              {isTrash
-                ? '削除した写真を確認・復元できます'
-                : isFavorite
-                  ? '何度でも見返したい、大切な一枚。'
-                  : album
-                    ? 'ふたりで集めた、とっておきの瞬間。'
-                    : '何気ない毎日も、とっておきの思い出に。'}
-            </p>
+        {!minimalPhotos && (
+          <div className="page-heading">
+            <div>
+              <div className="eyebrow">YOUR SHARED LIBRARY</div>
+              <h1>
+                {album || title}
+                {isFavorite && <Heart className="heading-heart" size={23} />}
+              </h1>
+              <p>
+                {isTrash
+                  ? '削除した写真を確認・復元できます'
+                  : isFavorite
+                    ? '何度でも見返したい、大切な一枚。'
+                    : album
+                      ? 'ふたりで集めた、とっておきの瞬間。'
+                      : '何気ない毎日も、とっておきの思い出に。'}
+              </p>
+            </div>
+            <div className="heading-tools">
+              <span className="photo-count">{base.length}枚の写真</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={compact ? '写真を大きく表示' : '写真を小さく表示'}
+                onClick={() => setCompact(!compact)}
+              >
+                {compact ? <Grid2X2 size={20} /> : <LayoutGrid size={20} />}
+              </Button>
+            </div>
           </div>
-          <div className="heading-tools">
-            <span className="photo-count">{base.length}枚の写真</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={compact ? '写真を大きく表示' : '写真を小さく表示'}
-              onClick={() => setCompact(!compact)}
-            >
-              {compact ? <Grid2X2 size={20} /> : <LayoutGrid size={20} />}
-            </Button>
-          </div>
-        </div>
+        )}
         {!isTrash && !isFavorite && !album && active.length > 0 && (
           <div className="memories">
             <button
@@ -283,29 +286,31 @@ function PhotoApp({
             </button>
           </div>
         )}
-        <div className="gallery-toolbar">
-          <div className="chip-group">
-            <button
-              className={filter === 'すべて' ? 'chip active' : 'chip'}
-              onClick={() => setFilter('すべて')}
-            >
-              すべての写真
-            </button>
-            {!isTrash && !isFavorite && (
+        {!minimalPhotos && (
+          <div className="gallery-toolbar">
+            <div className="chip-group">
               <button
-                className={filter === 'お気に入り' ? 'chip active' : 'chip'}
-                onClick={() => setFilter('お気に入り')}
+                className={filter === 'すべて' ? 'chip active' : 'chip'}
+                onClick={() => setFilter('すべて')}
               >
-                <Heart size={14} />
-                お気に入り
+                すべての写真
               </button>
-            )}
+              {!isTrash && !isFavorite && (
+                <button
+                  className={filter === 'お気に入り' ? 'chip active' : 'chip'}
+                  onClick={() => setFilter('お気に入り')}
+                >
+                  <Heart size={14} />
+                  お気に入り
+                </button>
+              )}
+            </div>
+            <span className="sort-label">
+              <ArrowUp size={14} />
+              追加日の新しい順（UTC）
+            </span>
           </div>
-          <span className="sort-label">
-            <ArrowUp size={14} />
-            追加日の新しい順（UTC）
-          </span>
-        </div>
+        )}
         {selected.length > 0 && (
           <div className="selection-bar">
             {!isTrash && (

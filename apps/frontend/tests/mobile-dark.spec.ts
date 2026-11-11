@@ -12,6 +12,9 @@ test('ダークUIをスマホで操作し、アルバム・作成・詳細を確
     page.getByRole('button', { name: '湖畔の朝を開く', exact: true }),
   ).toBeVisible();
   await expect(page.locator('.app-shell')).toHaveClass(/mobile-dark/);
+  await expect(page.locator('.main-content > .page-heading')).toHaveCount(0);
+  await expect(page.locator('.gallery-toolbar')).toHaveCount(0);
+  await expect(page.locator('.date-heading').first()).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
