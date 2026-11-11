@@ -157,13 +157,10 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
     .getByRole('link', { name: /^フォト/ })
     .last()
     .click();
-  const search = page.getByRole('textbox', { name: '写真を検索' });
-  await search.fill(filename);
+  await expect(page.getByRole('textbox', { name: '写真を検索' })).toHaveCount(
+    0,
+  );
   await expect(tile).toBeVisible();
-  await search.fill('no-such-photo-name');
-  await expect(
-    page.getByRole('heading', { name: '写真が見つかりませんでした' }),
-  ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,

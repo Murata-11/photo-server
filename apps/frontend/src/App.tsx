@@ -17,8 +17,6 @@ import {
   Trash2,
   Cloud,
   Plus,
-  Search,
-  SlidersHorizontal,
   ArrowUp,
   Check,
   ArrowLeft,
@@ -72,7 +70,6 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
   const [photos, setPhotos] = useState<Photo[]>([]),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(''),
-    [query, setQuery] = useState(''),
     [compact, setCompact] = useState(false),
     [upload, setUpload] = useState(initialUploadOpen),
     [uploading, setUploading] = useState(false),
@@ -189,13 +186,7 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
           (!isFavorite || p.favorite) &&
           (!album || p.albums.includes(album)),
     );
-    const visible = base.filter(
-      (p) =>
-        (filter !== 'お気に入り' || p.favorite) &&
-        `${p.name} ${p.location} ${p.albums.join(' ')}`
-          .toLowerCase()
-          .includes(query.toLowerCase()),
-    );
+    const visible = base.filter((p) => filter !== 'お気に入り' || p.favorite);
     const dates = [...new Set(visible.map((p) => p.date))].sort().reverse();
     return (
       <>
@@ -228,7 +219,7 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
             </Button>
           </div>
         </div>
-        {!isTrash && !isFavorite && !album && !query && active.length > 0 && (
+        {!isTrash && !isFavorite && !album && active.length > 0 && (
           <div className="memories">
             <button
               className="memory memory-wide"
@@ -358,19 +349,9 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
         ) : visible.length === 0 ? (
           <div className="empty-state">
             <Images size={44} />
-            <h2>
-              {query
-                ? '写真が見つかりませんでした'
-                : isTrash
-                  ? 'ゴミ箱は空です'
-                  : 'まだ写真がありません'}
-            </h2>
-            <p>
-              {query
-                ? '別の名前や場所で検索してみてください。'
-                : '思い出の一枚から、はじめましょう。'}
-            </p>
-            {!isTrash && !query && (
+            <h2>{isTrash ? 'ゴミ箱は空です' : 'まだ写真がありません'}</h2>
+            <p>思い出の一枚から、はじめましょう。</p>
+            {!isTrash && (
               <Button onClick={() => setUpload(true)}>
                 <Plus size={16} />
                 写真を追加
@@ -654,26 +635,6 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
             ひより<span className="brand-dot">.</span>
           </span>
         </NavLink>
-        <div className="search-box">
-          <Search size={21} />
-          <input
-            aria-label="写真を検索"
-            placeholder="思い出を検索してみよう"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              if (location.pathname.startsWith('/photo') || isAlbums)
-                navigate('/');
-            }}
-          />
-          {query ? (
-            <button aria-label="検索をクリア" onClick={() => setQuery('')}>
-              <X size={18} />
-            </button>
-          ) : (
-            <SlidersHorizontal size={19} />
-          )}
-        </div>
         <Button
           className="mobile-upload"
           variant="secondary"

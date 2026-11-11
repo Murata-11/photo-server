@@ -51,17 +51,10 @@ async function loaded(path = '/') {
   await screen.findByRole('button', { name: '湖畔の朝を開く' });
 }
 describe('photo application interactions', () => {
-  it('loads, searches, changes density and filters, selects and favorites', async () => {
+  it('loads, changes density and filters, selects and favorites', async () => {
     const user = userEvent.setup();
     await loaded();
-    const search = screen.getByRole('textbox', { name: '写真を検索' });
-    await user.type(search, 'missing');
-    expect(
-      await screen.findByRole('heading', {
-        name: '写真が見つかりませんでした',
-      }),
-    ).toBeTruthy();
-    await user.click(button('検索をクリア'));
+    expect(screen.queryByRole('textbox', { name: '写真を検索' })).toBeNull();
     await user.click(button('写真を小さく表示'));
     await user.click(button('写真を大きく表示'));
     await user.click(button('湖畔の朝を選択'));

@@ -46,18 +46,11 @@ test('一覧→詳細→お気に入り→削除→ゴミ箱→復元', async ({
     page.getByRole('button', { name: '山へ続く道を開く', exact: true }),
   ).toBeVisible();
 });
-test('検索、アルバム作成、写真のアルバム変更', async ({ page }) => {
+test('アルバム作成、写真のアルバム変更', async ({ page }) => {
   await page.goto(story());
-  const search = page.getByRole('textbox', { name: '写真を検索' });
-  await search.fill('存在しない写真');
-  await expect(
-    page.getByRole('heading', { name: '写真が見つかりませんでした' }),
-  ).toBeVisible();
-  await search.fill('湖畔');
-  await expect(
-    page.getByRole('button', { name: '湖畔の朝を開く', exact: true }),
-  ).toBeVisible();
-  await page.getByRole('button', { name: '検索をクリア' }).click();
+  await expect(page.getByRole('textbox', { name: '写真を検索' })).toHaveCount(
+    0,
+  );
   await page.getByRole('link', { name: 'アルバム', exact: true }).click();
   await page
     .getByRole('button', { name: 'アルバムを作成', exact: true })
@@ -203,11 +196,8 @@ test.describe('iPhone 16', () => {
     expect(targetSizes).toBe(true);
   });
 
-  test('検索入力と最後の写真が固定タブに隠れない', async ({ page }) => {
+  test('最後の写真が固定タブに隠れない', async ({ page }) => {
     await page.goto(story());
-    await page
-      .getByRole('textbox', { name: '写真を検索' })
-      .fill('何気ない一日');
     const photo = page.getByRole('button', {
       name: '何気ない一日を開く',
       exact: true,
