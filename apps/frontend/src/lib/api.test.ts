@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { setupServer } from 'msw/node';
 import { handlers } from '../mocks/handlers';
-import { resetStore } from '../mocks/scenarios';
+import { bulkFixture, resetStore } from '../mocks/scenarios';
 import { api } from './api';
 const server = setupServer(...handlers);
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
@@ -84,4 +84,36 @@ it('rejects invalid mock bodies and has protected binary endpoint fixtures', asy
   expect((await native('http://localhost/api/photos/1/thumbnail')).status).toBe(
     404,
   );
+});
+
+it('一括追加は既存所属を保持し、再送と不正対象を安全に扱う', async () => {
+  absoluteFetch();
+  bulkFixture();
+  const before = await api.list();
+  const ids = before.slice(0, 2).map((p) => p.id);
+  const name = (await api.albums())[0];
+  const [firstId, secondId] = ids;
+  if (!name || !firstId || !secondId) throw new Error('Missing fixture');
+  await api.addPhotosAlbum({ photoIds: ids, name });
+  await api.addPhotosAlbum({ photoIds: ids, name });
+  const after = await api.list();
+  for (const photo of before.slice(0, 2)) {
+    expect(after.find((p) => p.id === photo.id)?.albums).toEqual(
+      [...new Set([...photo.albums, name])].sort(),
+    );
+  }
+  for (const photoIds of [
+    [],
+    [firstId, firstId],
+    [firstId, '00000000-0000-4000-8000-999999999999'],
+  ]) {
+    await expect(api.addPhotosAlbum({ photoIds, name })).rejects.toThrow();
+    expect(await api.list()).toEqual(after);
+  }
+  await api.update(secondId, { deleted: true });
+  const trash = await api.list();
+  await expect(api.addPhotosAlbum({ photoIds: ids, name })).rejects.toThrow(
+    'ゴミ箱',
+  );
+  expect(await api.list()).toEqual(trash);
 });

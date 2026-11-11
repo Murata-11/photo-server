@@ -7,11 +7,13 @@ export function resetStore(next: typeof mode = 'normal') {
   photos = next === 'empty' ? [] : structuredClone(seed);
   mode = next;
   membershipMode = 'normal';
+  bulkMode = 'normal';
+  bulkCommitted = false;
   albums = next === 'empty' ? [] : [...new Set(seed.flatMap((p) => p.albums))];
 }
 export const listPhotos: HttpResponseResolver = async () => {
   await delay(mode === 'loading' ? 60000 : 180);
-  return mode === 'error'
+  return mode === 'error' || (bulkMode === 'refresh' && bulkCommitted)
     ? HttpResponse.json(
         { message: '写真を読み込めませんでした' },
         { status: 500 },
@@ -135,3 +137,66 @@ export function manyAlbumsFixture() {
   const first = photos[0];
   if (first) first.albums = albums.slice(0, 8);
 }
+
+let bulkMode: 'normal' | 'saving' | 'error' | 'unknown' | 'refresh' = 'normal';
+let bulkCommitted = false;
+export function bulkFixture(next: typeof bulkMode = 'normal', empty = false) {
+  resetStore();
+  bulkMode = next;
+  bulkCommitted = false;
+  // UUID fixtures comply with the production contract.
+  photos = photos.map((p, i) => ({
+    ...p,
+    id: `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`,
+    albums: empty ? [] : p.albums,
+  }));
+  if (empty) albums = [];
+}
+export const addPhotosAlbum: HttpResponseResolver = async ({ request }) => {
+  await delay(bulkMode === 'saving' ? 60000 : 180);
+  const body = (await request.json().catch(() => null)) as {
+    photoIds?: unknown;
+    name?: unknown;
+  } | null;
+  const ids = body?.photoIds;
+  if (
+    !body ||
+    Object.keys(body).some((k) => !['photoIds', 'name'].includes(k)) ||
+    !Array.isArray(ids) ||
+    ids.length < 1 ||
+    ids.length > 100 ||
+    new Set(ids).size !== ids.length ||
+    ids.some(
+      (id) =>
+        typeof id !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          id,
+        ),
+    ) ||
+    typeof body.name !== 'string' ||
+    !body.name.length ||
+    Array.from(body.name).length > 100
+  )
+    return HttpResponse.json({ message: '入力が不正です' }, { status: 400 });
+  const name = body.name;
+  const targets = photos.filter((p) => ids.includes(p.id));
+  if (targets.length !== ids.length || !albums.includes(name))
+    return HttpResponse.json(
+      { message: '写真またはアルバムが見つかりません' },
+      { status: 404 },
+    );
+  if (targets.some((p) => p.deleted))
+    return HttpResponse.json(
+      { message: 'ゴミ箱内の写真が含まれています。選択を見直してください' },
+      { status: 409 },
+    );
+  if (bulkMode === 'error')
+    return HttpResponse.json(
+      { message: '追加できませんでした（変更なし）' },
+      { status: 500 },
+    );
+  for (const p of targets) p.albums = [...new Set([...p.albums, name])].sort();
+  bulkCommitted = true;
+  if (bulkMode === 'unknown') return HttpResponse.error();
+  return new HttpResponse(null, { status: 204 });
+};

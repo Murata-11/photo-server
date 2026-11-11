@@ -38,6 +38,7 @@ export const api = {
  albums: () => request<Response<'listAlbums'>>('/api/albums'),
  createAlbum: (name: string) => request<Response<'createAlbum'>>('/api/albums',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})}),
  addAlbum: (id:string, name:string) => request<undefined>('/api/photos/'+encodeURIComponent(id)+'/albums',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})}),
+ addPhotosAlbum: (body:operations['addPhotosAlbum']['requestBody']['content']['application/json']) => request<undefined>('/api/photos/albums',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),
  removeAlbum: (id:string, name:string) => request<undefined>('/api/photos/'+encodeURIComponent(id)+'/albums',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})}),
  update: (id:string,body:operations['updatePhoto']['requestBody']['content']['application/json']) => request<Response<'updatePhoto'>>('/api/photos/'+encodeURIComponent(id),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),
  create: (file:File) => {const body=new FormData();body.append('file',file);return request<Response<'createPhoto'>>('/api/photos',{method:'POST',body});}

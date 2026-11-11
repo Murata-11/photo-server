@@ -38,6 +38,23 @@ export interface paths {
     patch: operations['updatePhoto'];
     trace?: never;
   };
+  '/api/photos/albums': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** @description 既存アルバムへ通常写真を一括追加する。全件を同一トランザクションで確定し、エラーでは全件変更しない。既存所属を保持し、追加済みは成功。再送は冪等。同一写真の追加・解除・ゴミ箱移動と直列化し、異なる所属を失わない。 */
+    put: operations['addPhotosAlbum'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/photos/{id}/albums': {
     parameters: {
       query?: never;
@@ -413,6 +430,74 @@ export interface operations {
         content?: never;
       };
       /** @description Internal error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  addPhotosAlbum: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          photoIds: string[];
+          /** @description 既存アルバム名との完全一致。自動作成・トリムはしない。 */
+          name: string;
+        };
+      };
+    };
+    responses: {
+      /** @description 全件成功（追加済みを含む）。本文なし。所属・枚数・表紙を再取得する。 */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description JSON・UUID・件数・重複ID・名前・未知フィールドが不正。変更なし。 */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Identity missing。変更なし。 */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not allowed / CSRF。変更なし。 */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description 写真またはアルバムが存在しない。変更なし。409より優先する。 */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description ゴミ箱内写真を含む。変更なし。再取得して対象を選び直す。 */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Internal error。トランザクションは取り消す。応答喪失時は結果不明として安全に再送可能。 */
       500: {
         headers: {
           [name: string]: unknown;

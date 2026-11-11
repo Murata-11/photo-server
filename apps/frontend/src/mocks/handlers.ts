@@ -5,6 +5,7 @@ export const handlers = [
   http.get('*/api/photos', scenarios.listPhotos),
   http.post('*/api/photos', scenarios.createPhoto),
   http.patch('*/api/photos/:id', scenarios.updatePhoto),
+  http.put('*/api/photos/albums', scenarios.addPhotosAlbum),
   http.put('*/api/photos/:id/albums', scenarios.addPhotoAlbum),
   http.delete('*/api/photos/:id/albums', scenarios.removePhotoAlbum),
   http.get('*/api/albums', scenarios.listAlbums),

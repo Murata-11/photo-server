@@ -1,3 +1,4 @@
+import { BulkAlbumDialog } from './BulkAlbumDialog';
 import { AlbumEditor } from './AlbumEditor';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import {
@@ -72,6 +73,7 @@ function PhotoApp() {
     [albumName, setAlbumName] = useState(''),
     [newAlbums, setNewAlbums] = useState<string[]>([]),
     [selected, setSelected] = useState<string[]>([]),
+    [bulkAlbumOpen, setBulkAlbumOpen] = useState(false),
     [mobileMenu, setMobileMenu] = useState(false),
     [filter, setFilter] = useState('すべて'),
     [showInfo, setShowInfo] = useState(false),
@@ -294,29 +296,44 @@ function PhotoApp() {
         </div>
         {selected.length > 0 && (
           <div className="selection-bar">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="選択解除"
-              onClick={() => setSelected([])}
-            >
-              <X size={18} />
-            </Button>
-            <strong>{selected.length}枚を選択中</strong>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={async () => {
-                const failed: string[] = [];
-                for (const p of photos.filter((p) => selected.includes(p.id)))
-                  if (!(await update(p, { favorite: true }))) failed.push(p.id);
-                setSelected(failed);
-                if (!failed.length) toast.success('お気に入りに追加しました');
-              }}
-            >
-              <Heart size={16} />
-              お気に入りに追加
-            </Button>
+            <div className="selection-summary">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="選択解除"
+                onClick={() => setSelected([])}
+              >
+                <X size={18} />
+              </Button>
+              <strong>{selected.length}枚を選択中</strong>
+            </div>
+            <div className="selection-actions">
+              {!isTrash && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setBulkAlbumOpen(true)}
+                >
+                  <FolderHeart size={16} />
+                  アルバムに追加
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={async () => {
+                  const failed: string[] = [];
+                  for (const p of photos.filter((p) => selected.includes(p.id)))
+                    if (!(await update(p, { favorite: true })))
+                      failed.push(p.id);
+                  setSelected(failed);
+                  if (!failed.length) toast.success('お気に入りに追加しました');
+                }}
+              >
+                <Heart size={16} />
+                お気に入りに追加
+              </Button>
+            </div>
           </div>
         )}
         {loading ? (
@@ -823,6 +840,21 @@ function PhotoApp() {
           ))}
         </nav>
       )}
+      <BulkAlbumDialog
+        open={bulkAlbumOpen}
+        onOpenChange={setBulkAlbumOpen}
+        photoIds={selected}
+        albums={newAlbums}
+        onSaved={() => setSelected([])}
+        onReload={async () => {
+          const [nextPhotos, nextAlbums] = await Promise.all([
+            api.list(),
+            api.albums(),
+          ]);
+          setPhotos(nextPhotos);
+          setNewAlbums(nextAlbums);
+        }}
+      />
       <Dialog open={upload} onOpenChange={setUpload}>
         <DialogContent>
           <DialogTitle className="dialog-title">思い出を追加</DialogTitle>
