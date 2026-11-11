@@ -1658,3 +1658,40 @@ h1 {
   color: #2563eb;
   text-decoration: underline;
 }
+
+.bulk-trash-note {
+  margin: 12px 0;
+  font-size: 13px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .selection-bar {
+    padding-right: 8px;
+  }
+  .selection-summary {
+    padding-right: 48px;
+  }
+}
+
+.selection-bar {
+  position: relative;
+  padding-right: 64px;
+}
+.selection-bar .bulk-trash-trigger {
+  position: absolute;
+  right: 8px;
+  top: 6px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  color: #64748b;
+}
+@media (max-width: 760px) {
+  .selection-bar {
+    padding-right: 8px;
+  }
+  .selection-bar .bulk-trash-trigger {
+    top: 8px;
+  }
+}

@@ -45,6 +45,14 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }),
+  trashPhotos: (
+    body: operations['trashPhotos']['requestBody']['content']['application/json'],
+  ) =>
+    request<undefined>('/api/photos/trash', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
   removeAlbum: (id: string, name: string) =>
     request<undefined>('/api/photos/' + encodeURIComponent(id) + '/albums', {
       method: 'DELETE',

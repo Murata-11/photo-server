@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { setupServer } from 'msw/node';
 import { handlers } from '../mocks/handlers';
-import { bulkFixture, resetStore } from '../mocks/scenarios';
+import { bulkFixture, resetStore, trashFixture } from '../mocks/scenarios';
 import { api } from './api';
 const server = setupServer(...handlers);
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
@@ -116,4 +116,66 @@ it('一括追加は既存所属を保持し、再送と不正対象を安全に�
     'ゴミ箱',
   );
   expect(await api.list()).toEqual(trash);
+});
+it('一括ゴミ箱のモック契約は入力・全件不変更・保持・冪等性を表す', async () => {
+  absoluteFetch();
+  bulkFixture();
+  const before = await api.list();
+  const first = before[0],
+    second = before[1];
+  if (!first || !second) throw new Error('Missing fixture');
+  for (const body of [
+    { photoIds: [] },
+    { photoIds: Array.from({ length: 101 }, () => first.id) },
+    { photoIds: [first.id, first.id] },
+    { photoIds: ['bad'] },
+    { photoIds: [first.id], extra: true },
+    null,
+  ]) {
+    const response = await fetch('/api/photos/trash', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    expect(response.status).toBe(400);
+  }
+  await expect(
+    api.trashPhotos({
+      photoIds: [first.id, 'ffffffff-ffff-4fff-8fff-ffffffffffff'],
+    }),
+  ).rejects.toThrow('存在しません');
+  expect(await api.list()).toEqual(before);
+  await api.trashPhotos({ photoIds: [first.id, second.id] });
+  await api.trashPhotos({ photoIds: [first.id, second.id] });
+  const after = await api.list();
+  expect(after.find((p) => p.id === first.id)).toEqual({
+    ...first,
+    deleted: true,
+  });
+  expect(after.find((p) => p.id === second.id)).toEqual({
+    ...second,
+    deleted: true,
+  });
+  expect(after.slice(2)).toEqual(before.slice(2));
+});
+
+it('一括移動の失敗・応答喪失・再取得失敗シナリオを契約に沿って操作できる', async () => {
+  absoluteFetch();
+  for (const mode of ['error', 'unknown', 'refresh', 'missing'] as const) {
+    trashFixture(mode);
+    const before = await api.list();
+    const id = before[0]?.id;
+    if (!id) throw new Error('Missing fixture');
+    if (mode === 'refresh') {
+      await api.trashPhotos({ photoIds: [id] });
+      await expect(api.list()).rejects.toThrow('読み込めません');
+      expect((await api.list())[0]?.deleted).toBe(true);
+    } else {
+      await expect(api.trashPhotos({ photoIds: [id] })).rejects.toThrow();
+      if (mode === 'unknown') {
+        await api.trashPhotos({ photoIds: [id] });
+        expect((await api.list())[0]?.deleted).toBe(true);
+      } else expect(await api.list()).toEqual(before);
+    }
+  }
 });

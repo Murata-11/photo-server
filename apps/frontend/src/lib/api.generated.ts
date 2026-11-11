@@ -38,6 +38,23 @@ export interface paths {
     patch: operations['updatePhoto'];
     trace?: never;
   };
+  '/api/photos/trash': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** @description 通常写真を一括でゴミ箱へ移動する。1〜100枚を同一トランザクションで確定し、エラーでは全件変更しない。既にゴミ箱内の写真は成功として扱い、再送は冪等。元画像・表示画像・メタデータ・お気に入り・アルバム所属を保持する。ID順に写真行をロックし、個別所属編集・一括アルバム追加・単一削除・復元と直列化する。競合の最終状態はDB適用順で決まる。未承認の仕様案であり製品APIは後続実装。 */
+    put: operations['trashPhotos'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/photos/albums': {
     parameters: {
       query?: never;
@@ -462,6 +479,65 @@ export interface operations {
         content?: never;
       };
       /** @description Internal error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  trashPhotos: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          photoIds: string[];
+        };
+      };
+    };
+    responses: {
+      /** @description 全件成功（既にゴミ箱内の写真を含む）。本文なし。一覧・アルバム枚数・表紙・ゴミ箱を再取得する。 */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description JSON・UUID・件数・重複ID・未知フィールドが不正。変更なし。 */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Identity missing。変更なし。 */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not allowed / CSRF。変更なし。 */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description 存在しない写真を含む。全件変更なし。再取得して選び直す。 */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Internal error。トランザクションを取り消す。応答喪失時は結果不明として同じIDを安全に再送可能。 */
       500: {
         headers: {
           [name: string]: unknown;
