@@ -21,6 +21,7 @@ vi.mock('./lib/api', () => ({
     update: vi.fn(),
     addAlbum: vi.fn(),
     removeAlbum: vi.fn(),
+    trashPhotos: vi.fn(),
   },
 }));
 let photos: Photo[];
@@ -193,4 +194,34 @@ describe('photo application interactions', () => {
     ).toBeTruthy();
     await user.click(button('フォトに戻る'));
   });
+});
+
+it('一括移動で対象だけを除き再取得失敗から更新のみ再試行する', async () => {
+  const user = userEvent.setup();
+  vi.mocked(api.trashPhotos).mockImplementation(async ({ photoIds }) => {
+    photos = photos.map((photo) =>
+      photoIds.includes(photo.id) ? { ...photo, deleted: true } : photo,
+    );
+    vi.mocked(api.list).mockRejectedValueOnce(new Error('offline'));
+  });
+  await loaded('/album/秋の小旅行');
+  await user.click(button('湖畔の朝を選択'));
+  await user.click(button('山へ続く道を選択'));
+  await user.click(button('ゴミ箱に移動'));
+  await user.click(button('キャンセル'));
+  expect(screen.getByText('2枚を選択中')).toBeTruthy();
+  await user.click(button('ゴミ箱に移動'));
+  const confirm = screen.getAllByRole('button', { name: 'ゴミ箱に移動' });
+  await user.click(confirm[confirm.length - 1] as HTMLElement);
+  await screen.findByRole('alert');
+  expect(
+    screen.queryByRole('button', { name: '湖畔の朝を開く', hidden: true }),
+  ).toBeNull();
+  expect(
+    screen.getByRole('button', { name: '青い時間を開く', hidden: true }),
+  ).toBeTruthy();
+  await user.click(button('再取得'));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(api.trashPhotos).toHaveBeenCalledTimes(1);
+  expect(api.trashPhotos).toHaveBeenCalledWith({ photoIds: ['1', '2'] });
 });

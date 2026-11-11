@@ -8,11 +8,20 @@ export function resetStore(next: typeof mode = 'normal') {
   mode = next;
   membershipMode = 'normal';
   bulkMode = 'normal';
+  trashMode = 'normal';
+  trashCommitted = false;
   uploadMode = 'normal';
   bulkCommitted = false;
   albums = next === 'empty' ? [] : [...new Set(seed.flatMap((p) => p.albums))];
 }
 export const listPhotos: HttpResponseResolver = async () => {
+  if (trashMode === 'refresh' && trashCommitted) {
+    trashMode = 'normal';
+    return HttpResponse.json(
+      { message: '写真を読み込めませんでした' },
+      { status: 500 },
+    );
+  }
   await delay(mode === 'loading' ? 60000 : 180);
   return mode === 'error' || (bulkMode === 'refresh' && bulkCommitted)
     ? HttpResponse.json(
@@ -229,3 +238,53 @@ export function uploadFixture(next: typeof uploadMode = 'normal') {
   resetStore();
   uploadMode = next;
 }
+
+// Issue #26仕様レビュー用。実DBのトランザクション・ロック検証の代替ではない。
+let trashMode:
+  'normal' | 'saving' | 'error' | 'unknown' | 'refresh' | 'missing' = 'normal';
+let trashCommitted = false;
+export function trashFixture(next: typeof trashMode = 'normal') {
+  bulkFixture();
+  trashMode = next;
+}
+export const trashPhotos: HttpResponseResolver = async ({ request }) => {
+  await delay(trashMode === 'saving' ? 'infinite' : 180);
+  const body = (await request.json().catch(() => null)) as {
+    photoIds?: unknown;
+  } | null;
+  const ids = body?.photoIds;
+  if (
+    !body ||
+    Object.keys(body).some((key) => key !== 'photoIds') ||
+    !Array.isArray(ids) ||
+    !ids.length ||
+    ids.length > 100 ||
+    new Set(ids).size !== ids.length ||
+    ids.some(
+      (id) =>
+        typeof id !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          id,
+        ),
+    )
+  )
+    return HttpResponse.json({ message: '入力が不正です' }, { status: 400 });
+  const targets = photos.filter((photo) => ids.includes(photo.id));
+  if (targets.length !== ids.length || trashMode === 'missing')
+    return HttpResponse.json(
+      { message: '写真が存在しません。再取得して選び直してください' },
+      { status: 404 },
+    );
+  if (trashMode === 'error')
+    return HttpResponse.json(
+      { message: '移動できませんでした' },
+      { status: 500 },
+    );
+  for (const photo of targets) photo.deleted = true;
+  trashCommitted = true;
+  if (trashMode === 'unknown') {
+    trashMode = 'normal';
+    return HttpResponse.error();
+  }
+  return new HttpResponse(null, { status: 204 });
+};

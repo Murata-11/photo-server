@@ -1,3 +1,4 @@
+import { BulkTrashDialog } from './BulkTrashDialog';
 import { BulkAlbumDialog } from './BulkAlbumDialog';
 import { AlbumEditor } from './AlbumEditor';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
@@ -79,6 +80,7 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
     [newAlbums, setNewAlbums] = useState<string[]>([]),
     [selected, setSelected] = useState<string[]>([]),
     [bulkAlbumOpen, setBulkAlbumOpen] = useState(false),
+    [bulkTrashOpen, setBulkTrashOpen] = useState(false),
     [mobileMenu, setMobileMenu] = useState(false),
     [filter, setFilter] = useState('すべて'),
     [showInfo, setShowInfo] = useState(false),
@@ -331,6 +333,17 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
                 <Heart size={16} />
                 お気に入りに追加
               </Button>
+              {!isTrash && (
+                <Button
+                  className="bulk-trash-trigger"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setBulkTrashOpen(true)}
+                >
+                  <Trash2 size={16} />
+                  ゴミ箱に移動
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -808,6 +821,32 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
           ))}
         </nav>
       )}
+      <BulkTrashDialog
+        open={bulkTrashOpen}
+        onOpenChange={setBulkTrashOpen}
+        photoIds={selected}
+        album={
+          location.pathname.startsWith('/album/')
+            ? decodeURIComponent(location.pathname.slice('/album/'.length))
+            : undefined
+        }
+        onSaved={(ids) => {
+          setSelected([]);
+          setPhotos((previous) =>
+            previous.map((photo) =>
+              ids.includes(photo.id) ? { ...photo, deleted: true } : photo,
+            ),
+          );
+        }}
+        onReload={async () => {
+          const [nextPhotos, nextAlbums] = await Promise.all([
+            api.list(),
+            api.albums(),
+          ]);
+          setPhotos(nextPhotos);
+          setNewAlbums(nextAlbums);
+        }}
+      />
       <BulkAlbumDialog
         open={bulkAlbumOpen}
         onOpenChange={setBulkAlbumOpen}

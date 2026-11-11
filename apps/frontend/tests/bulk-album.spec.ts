@@ -30,8 +30,10 @@ for (const viewport of [
           };
         }),
       );
-    expect(actions).toHaveLength(2);
+    expect(actions).toHaveLength(3);
     expect(actions[0]?.y).toBe(actions[1]?.y);
+    if (viewport.width <= 760)
+      expect(actions[2]?.y).toBeGreaterThan(actions[1]?.y ?? 0);
     for (const action of actions)
       expect(action.scroll).toBeLessThanOrEqual(action.client);
     if (viewport.width <= 760)

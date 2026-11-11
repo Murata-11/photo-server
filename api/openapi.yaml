@@ -140,6 +140,40 @@ paths:
                 deleted:
                   type: boolean
               additionalProperties: false
+  /api/photos/trash:
+    put:
+      operationId: trashPhotos
+      description: 通常写真を一括でゴミ箱へ移動する。1〜100枚を同一トランザクションで確定し、エラーでは全件変更しない。既にゴミ箱内の写真は成功として扱い、再送は冪等。元画像・表示画像・メタデータ・お気に入り・アルバム所属を保持する。ID順に写真行をロックし、個別所属編集・一括アルバム追加・単一削除・復元と直列化する。競合の最終状態はDB適用順で決まる。未承認の仕様案であり製品APIは後続実装。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [photoIds]
+              properties:
+                photoIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  uniqueItems: true
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '204':
+          description: 全件成功（既にゴミ箱内の写真を含む）。本文なし。一覧・アルバム枚数・表紙・ゴミ箱を再取得する。
+        '400':
+          description: JSON・UUID・件数・重複ID・未知フィールドが不正。変更なし。
+        '401':
+          description: Identity missing。変更なし。
+        '403':
+          description: Not allowed / CSRF。変更なし。
+        '404':
+          description: 存在しない写真を含む。全件変更なし。再取得して選び直す。
+        '500':
+          description: Internal error。トランザクションを取り消す。応答喪失時は結果不明として同じIDを安全に再送可能。
   /api/photos/albums:
     put:
       operationId: addPhotosAlbum

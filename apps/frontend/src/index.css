@@ -1658,3 +1658,15 @@ h1 {
   color: #2563eb;
   text-decoration: underline;
 }
+
+.bulk-trash-note {
+  margin: 12px 0;
+  font-size: 13px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .selection-actions > .bulk-trash-trigger {
+    grid-column: 1 / -1;
+  }
+}
