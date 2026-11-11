@@ -31,8 +31,13 @@
       ]
     },
     "apps/backend": {
-      "entry": ["src/index.ts", "src/migrate.ts", "src/image-worker.ts"],
-      "project": ["src/**/*.ts"]
+      "entry": [
+        "src/index.ts",
+        "src/migrate.ts",
+        "src/image-worker.ts",
+        "scripts/*.mjs"
+      ],
+      "project": ["src/**/*.ts", "scripts/*.mjs"]
     }
   },
   "ignoreIssues": {

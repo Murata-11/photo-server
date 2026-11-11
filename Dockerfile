@@ -52,6 +52,7 @@ COPY --from=build --chown=node:node /app/apps/frontend/dist/ /app/apps/frontend/
 COPY --chmod=0644 apps/backend/test-fixtures/heic/tiny.heic /opt/native/share/photo/smoke.heic
 RUN node --input-type=module -e "import sharp from 'sharp'; import {execFileSync} from 'node:child_process'; if(sharp.versions.heif !== undefined || sharp.versions.vips !== '8.18.7') throw Error('HEVC linkage missing'); execFileSync(process.env.HEIF_INSPECTOR, ['/opt/native/share/photo/smoke.heic']); await sharp('/opt/native/share/photo/smoke.heic').resize(16).jpeg().toBuffer();" \
     && mkdir -p /data/photos && chown node:node /data/photos
+COPY --from=build /app/node_modules/node-addon-api/LICENSE.md /opt/native/share/licenses/node-addon-api-LICENSE.md
 USER node
 EXPOSE 3000
 CMD ["node", "dist/index.js"]
