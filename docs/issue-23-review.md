@@ -1,6 +1,6 @@
 # Issue #23 仕様レビュー
 
-対象：[Issue #23](https://github.com/Murata-11/photo-server/issues/23)。基準mainは `7eef5d9`。仕様案は未承認で、ready付与・マージ・本番反映は含まない。
+対象：[Issue #23](https://github.com/Murata-11/photo-server/issues/23)。基準mainは `7eef5d9`。仕様PR #37（`cdde8b5`）は2026-11-11にPOが承認・マージ済み（main `d6b199c`）。ready付与後の「ありがとう、実装に移って。」に基づき実装着手。以下は仕様段階のレビュー記録。実装検証は[検証記録](issue-23-validation.md)を参照。
 
 ## 提案とレビュー方法
 
