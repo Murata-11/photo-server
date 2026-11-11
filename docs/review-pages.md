@@ -32,7 +32,7 @@ Pages設定APIは作業環境からForbiddenとなったため、現在の有効
 - `review-build`（`.github/workflows/storybook.yml`）はread-only権限でPRのhead SHAをcheckoutし、固定依存を導入、更新・削除処理のテスト、Storybook型検査・静的ビルド、OpenAPIの構文・参照検証を行う。mainへのpushと手動実行では生成までを確認する。
 - PRでは `review-site` artifactを3日間保持する。OpenAPIの正は `api/openapi.yaml` で、閲覧用にコピーする。仕様を別に手書き管理しない。
 - `review-pages` は成功したPRビルドを受けて起動する。mainの公開処理だけを実行し、PRのコードやartifactのJSを公開ジョブでは実行しない。同一リポジトリのPRだけを対象とし、既にcloseされたPRや古いSHAの結果は公開しない。forkはビルドのみ。
-- 成果物の隠しパス、シンボリックリンク、必須ファイルの欠落、上限超過を拒否し、対象PRのフォルダだけを差し替える。`gh-pages` ブランチは複数PRの成果物の保存用であり、GitHub PagesのSourceには指定しない。force pushはしない。
+- 成果物の隠しパス、シンボリックリンク、必須ファイルの欠落、上限超過を拒否し、対象PRのHTML・インデックスを最新へ更新する。開いたままの画面の遅延読み込みを保つため、`storybook/assets`の旧ファイルもPRのcloseまで保持する。新しい成果物の同名ファイルを優先し、旧ファイルとの結合後にも同じファイル数・容量・パス検証を行う。上限超過時は既存公開物を変更せず失敗させる。`gh-pages` ブランチは複数PRの成果物の保存用であり、GitHub PagesのSourceには指定しない。force pushはしない。
 - Pages全体を一つのartifactとして公式Pages Actionsでデプロイし、成功後にPRの同じBotコメントを更新する。公開処理はリポジトリ全体で直列化する。
 - PRのclose時は `pull_request_target` でmainの処理だけを実行し、該当フォルダを削除して再デプロイする。マージでも同じ。Git履歴には過去の静的資料が残るため、秘密情報の削除手段には使わない。
 
@@ -68,3 +68,9 @@ Chromium/Playwrightで `/photo-server/pr/10/` 相当のサブパスからトッ�
 - PR更新後は同じコメントが更新され、close後は該当PRのページが削除される。
 
 既存 `dod-check` の失敗と、レビュー資料の公開結果は別に確認する。
+
+## 公開更新中の古い画面
+
+開いたままのStorybookは、表示後に別StoryのJSを遅延取得する。旧assetsを即時削除すると、古いHTMLや実行中JSが参照するハッシュ付きファイルが消え、`Failed to fetch dynamically imported module`となる。PR #29で公開ファイル名とエラーに出た旧ファイル名の不一致を確認した。
+
+旧assetsの保持は本変更がmainへマージされた後の公開更新から有効。既に削除されたファイルを復元するものではない。現在エラーが出ているタブはページ全体を再読み込みして最新のインデックスへ切り替える。PR close時は旧assetsも含めて削除する。公開権限のある処理は引き続きmainだけを実行し、PRブランチのコードを公開ジョブで実行しない。
