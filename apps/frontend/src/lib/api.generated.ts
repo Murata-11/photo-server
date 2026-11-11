@@ -147,6 +147,18 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    UploadError: {
+      /**
+       * @description 利用者向けの理由。内部パス・スタック・デコーダーの生の例外は含めない。
+       * @example 6,000万画素以下の画像を選んでください
+       * @example 画像の形式と内容が一致しません
+       * @example 複数画像・アニメーション・動画には対応していません
+       * @example 画像を読み込めません。破損していない画像を選んでください
+       * @example JPEG・PNG・WebP・HEICの静止画像を選んでください
+       * @example 画像を処理できませんでした。時間をおいて再試行してください
+       */
+      message: string;
+    };
     Photo: {
       id: string;
       src: string;
@@ -265,7 +277,7 @@ export interface operations {
         'multipart/form-data': {
           /**
            * Format: binary
-           * @description JPEG/PNG/WebP、50MiB以下。元バイト列を保持。
+           * @description JPEG/PNG/WebP/HEICの静止画像、1枚50MiB（52,428,800バイト）以下、 幅×高さが60,000,000以下（上限を含む）。 MIMEはimage/jpeg・image/png・image/webp・image/heic・image/heif。 HEIC/HEIFはHEVCの独立した主画像1枚のみ。AVIF、画像シーケンス、動画は対象外。 主画像に従属するサムネイル・補助画像は独立写真として取り込まない。 MIMEと実際の画像形式を照合し、拡張子だけで信頼しない。 元バイト列・元形式を保持し、表示用は向きを反映したメタデータなしのJPEG。 Issue #20の提案契約。仕様承認・マージ後の実装PRで提供する。
            */
           file: string;
         };
@@ -316,26 +328,30 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Too large */
+      /** @description ファイル本体が50MiBを超える（multipartの外枠とは別に検証） */
       413: {
         headers: {
           [name: string]: unknown;
         };
         content?: never;
       };
-      /** @description Unsupported image */
+      /** @description 未対応のMIMEまたは画像コーデック（HEIF内のHEVC静止画以外を含む） */
       415: {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['UploadError'];
+        };
       };
-      /** @description Corrupt image */
+      /** @description 空・破損・形式不一致・複数画像/動画・60,000,000画素超過。理由をmessageで区別する。 */
       422: {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['UploadError'];
+        };
       };
       /** @description Internal error */
       500: {
@@ -343,6 +359,15 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      /** @description 画像処理枠が満杯、処理時間上限、またはデコーダー障害。破損画像として通知しない。 */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UploadError'];
+        };
       };
     };
   };

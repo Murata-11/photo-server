@@ -8,6 +8,7 @@ export function resetStore(next: typeof mode = 'normal') {
   mode = next;
   membershipMode = 'normal';
   bulkMode = 'normal';
+  uploadMode = 'normal';
   bulkCommitted = false;
   albums = next === 'empty' ? [] : [...new Set(seed.flatMap((p) => p.albums))];
 }
@@ -24,7 +25,24 @@ export const createPhoto: HttpResponseResolver = async ({ request }) => {
   const form = await request.formData().catch(() => null);
   const file = form?.get('file');
   if (!(file instanceof File)) return new HttpResponse(null, { status: 400 });
-  const src = URL.createObjectURL(file);
+  if (uploadMode === 'saving') await delay('infinite');
+  const uploadError = {
+    pixels: [422, '6,000万画素以下の画像を選んでください'],
+    corrupt: [422, '画像を読み込めません。破損していない画像を選んでください'],
+    mismatch: [422, '画像の形式と内容が一致しません'],
+    multiple: [422, '複数画像・アニメーション・動画には対応していません'],
+    unsupported: [415, 'JPEG・PNG・WebP・HEICの静止画像を選んでください'],
+    busy: [503, '画像を処理できませんでした。時間をおいて再試行してください'],
+  } as const;
+  if (uploadMode !== 'normal' && uploadMode !== 'saving') {
+    const [status, message] = uploadError[uploadMode];
+    return HttpResponse.json({ message }, { status });
+  }
+  // HEICのデコードは模擬しない。表示画像のみ架空写真のJPEGで代用する。
+  const src =
+    file.type === 'image/heic' || file.type === 'image/heif'
+      ? '/photos/01.jpg'
+      : URL.createObjectURL(file);
   const p: Photo = {
     id: crypto.randomUUID(),
     src,
@@ -200,3 +218,18 @@ export const addPhotosAlbum: HttpResponseResolver = async ({ request }) => {
   if (bulkMode === 'unknown') return HttpResponse.error();
   return new HttpResponse(null, { status: 204 });
 };
+
+// Issue #20の画面仕様専用。実デコード・寸法・破損の検証ではない。
+let uploadMode:
+  | 'normal'
+  | 'saving'
+  | 'pixels'
+  | 'corrupt'
+  | 'mismatch'
+  | 'multiple'
+  | 'unsupported'
+  | 'busy' = 'normal';
+export function uploadFixture(next: typeof uploadMode = 'normal') {
+  resetStore();
+  uploadMode = next;
+}

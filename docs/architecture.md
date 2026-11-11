@@ -24,3 +24,7 @@ DBは[DB設計](database-design.md)、起動・検証は[README](../README.md)�
 ## 写真の一括アルバム追加（Issue #22）
 
 OpenAPI `addPhotosAlbum` を実APIに実装する。既存の中間テーブルに所属だけを追加し、DB構造や写真ファイルは変更しない。対象写真をID順に `FOR UPDATE` でロックし、全件の存在・アルバム存在・ゴミ箱状態を確認した同一トランザクション内で一括INSERTする。既存所属は保持し、重複は追加しない。個別所属変更は同じ写真ロック、ゴミ箱移動はUPDATEの行ロックで直列化する。失敗時は全件ロールバックする。応答喪失時も同じ追加を安全に再送できる。
+
+## Issue #20の構成提案（未承認）
+
+HEIC用のカスタムlibvips・libheif・libde265と終了可能な画像処理子プロセスの提案は[ADR 0006](decisions/0006-heic-upload.md)を参照。通常アプリ・Dockerfileはまだ既存構成。仕様PRのStorybookプレビューはデコード処理を実装したものではない。
