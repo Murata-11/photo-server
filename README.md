@@ -1,13 +1,16 @@
 # photo-server
 
-**Windows の Docker Desktop で動かす、2人専用の写真共有アプリです。**
+**2人専用の写真共有アプリです。** Windows の Docker Desktop 向け手順と、Ubuntu の Docker Engine 向け手順を掲載しています。
 写真の追加・閲覧・ダウンロード、アルバム、お気に入り、ゴミ箱・復元に対応します。PC・スマートフォンから、Tailscale 経由で利用します。JPEG・PNG・WebPの静止画像に対応し、1枚50MB（50MiB）までアップロードできます。
 
 1. [構成](#1-構成)
 2. [Tailscale の設定](#2-tailscale-の設定)
-3. [デプロイ手順](#3-デプロイ手順)
+3. [Windows のデプロイ手順](#3-windows-のデプロイ手順)
+4. [Ubuntu のデプロイ手順（Raspberry Pi / ARM64）](#4-ubuntu-のデプロイ手順raspberry-pi--arm64)
 
 ## 1. 構成
+
+以下はWindowsの構成です。UbuntuではDocker Engineを使います。[手順4](#4-ubuntu-のデプロイ手順raspberry-pi--arm64)を参照してください。
 
 ```text
 利用者2人のPC・スマートフォン
@@ -79,7 +82,7 @@ Tailscale管理画面のUsersで、2人のログイン名を確認します。�
 
 ServeはWindowsのローカル接続をアプリへ転送します。この構成では、Windows上のプロセスとDockerを操作できる利用者を信頼します。
 
-## 3. デプロイ手順
+## 3. Windows のデプロイ手順
 
 ### 3-1. Docker Desktopとソースを準備する
 
@@ -193,6 +196,116 @@ tailscale serve status
 | 写真の追加など更新操作だけ失敗 | `APP_ORIGIN`がアクセス中のHTTPSオリジンと一致し、末尾に`/`がないか |
 
 この構成はLinux環境でビルド・認証・保存・コンテナ再作成後の永続性を確認しています。Windows Docker Desktop実機、実際のTailscale通信、バックアップからの復元は別途確認が必要です。
+
+## 4. Ubuntu のデプロイ手順（Raspberry Pi / ARM64）
+
+64bit Ubuntu（例：Ubuntu Server 24.04 LTS / ARM64）を使うRaspberry Piが対象です。既存の`Dockerfile`と`compose.yaml`をそのまま使い、Pi上でビルドします。Windows用にビルドしたイメージや`node_modules`はコピーしません。ホストへのNode.js・pnpmやDocker Desktopの導入は不要です。
+
+**Raspberry Pi / ARM64実機でのビルド・起動・写真操作は未検証です。** Linux x86_64での検証とARM64用依存関係の確認に基づく手順であり、32bit Ubuntuは対象にしていません。
+
+### 4-1. Docker Engineとソースを準備する
+
+アーキテクチャを確認します。`aarch64` / `arm64`であることを確認してください。
+
+```sh
+uname -m
+dpkg --print-architecture
+```
+
+[Docker公式のUbuntu向け手順](https://docs.docker.com/engine/install/ubuntu/)に従い、Docker EngineとComposeプラグイン（`docker-compose-plugin`）をインストールします。以下はrootful Dockerを`sudo`で操作する手順です。
+
+```sh
+sudo systemctl enable --now docker
+sudo docker version
+sudo docker compose version
+sudo apt-get update
+sudo apt-get install -y git
+git clone https://github.com/Murata-11/photo-server.git
+cd photo-server
+```
+
+以降は`compose.yaml`のあるフォルダーで実行します。取得済みの場合は既存のフォルダーへ移動してください。
+
+### 4-2. UbuntuでTailscale Serveを設定する
+
+[Tailscale公式のLinux向け手順](https://tailscale.com/download/linux)に従ってUbuntuにインストールし、利用端末と同じTailnetへ参加させます。
+
+```sh
+sudo systemctl enable --now tailscaled
+sudo tailscale up
+tailscale status
+sudo tailscale serve --bg http://127.0.0.1:3000
+tailscale serve status
+```
+
+初回に設定用URLが表示された場合は開いてServe / HTTPSを有効にします。表示されたHTTPS URLを`APP_ORIGIN`に使います。[手順2-3](#2-3-許可する2人を決める)と同様に2人のログイン名を確認し、アクセス制御がある場合は利用端末からUbuntuホストのTCP 443への接続を許可します。
+
+アプリとDBのポートは既存のCompose設定どおりループバックだけに公開します。Funnelは使用しません。認証はServeの利用者情報を使うため、Ubuntu上のプロセスとDockerを操作できる利用者を信頼する構成です。
+
+### 4-3. 写真保存先と`.env`を準備する
+
+以下は**新規の専用保存先**を`/srv/photo-server/photos`とする例です。アプリコンテナは`node`ユーザー（UID / GID 1000）で動くため、そのユーザーが書き込めるようにします。bind mountでは、Dockerfile内の権限設定よりホスト側の権限が優先されます。
+
+```sh
+sudo install -d -o 1000 -g 1000 -m 0750 /srv/photo-server/photos
+```
+
+既存データがある場合は、新規導入として進めず[運用手順](docs/operations.md)に従ってDBと写真を一組でバックアップ・移行してください。既存の共有フォルダー全体に再帰的な所有者変更を行わないでください。
+
+初回だけ`.env`をコピーして編集します。既存の`.env`は上書きしません。
+
+```sh
+cp .env.example .env
+chmod 600 .env
+nano .env
+```
+
+`POSTGRES_PASSWORD`と`POSTGRES_PASSWORD_URLENCODED`は[手順3-2](#3-2-envを設定する)に従って設定し、次の値を実際の保存先・HTTPS URL・ログイン名に置き換えます。
+
+```dotenv
+PHOTO_STORAGE_PATH=/srv/photo-server/photos
+APP_ORIGIN=https://photo-pi.example-tailnet.ts.net
+ALLOWED_USERS=first@example.com,second@example.com
+```
+
+`DEV_USER`は設定しません。`DATABASE_URL`・`PHOTO_DATA_DIR`・`PORT`はComposeでの通常利用では変更不要です。
+
+### 4-4. ビルド・起動・動作確認
+
+```sh
+sudo docker compose up -d --build --wait
+sudo docker compose ps
+sudo docker compose exec app sh -c 'id && test -w /data/photos'
+```
+
+`app`と`db`が両方`healthy`で、保存先の書き込み確認が成功することを確認します。Piでの初回ビルドは時間がかかる場合があります。
+
+2人の端末からTailscaleのHTTPS URLを開き、テスト写真の追加・表示・ダウンロードを確認します。`http://127.0.0.1:3000`への直接アクセスは、利用者情報がないため拒否されるのが通常です。未許可の利用者が拒否されることも確認してください。
+
+### 更新・停止・再開とトラブルシューティング
+
+更新前に承認されたコードを取得し、DBと写真をバックアップします。同じフォルダー・Composeプロジェクト名で実行してください。
+
+```sh
+# コード更新後の再ビルド
+sudo docker compose up -d --build --wait
+
+# 停止
+sudo docker compose stop
+
+# 再開（.envの変更も反映）
+sudo docker compose up -d --wait
+
+# 状態とログ
+sudo docker compose ps
+sudo docker compose logs --tail 100 app db
+tailscale status
+tailscale serve status
+```
+
+写真保存時に`EACCES`が出る場合は`PHOTO_STORAGE_PATH`の実際の保存先とUID 1000の書き込み権限を確認します。HTTPS接続・認証・Originの問題はWindows手順の[トラブルシューティング](#うまく接続できないとき)も参照してください。
+
+DBは名前付きvolume、写真は指定したホストディレクトリに保存されます。**`sudo docker compose down -v`やvolume削除はDBデータを失うため、停止には使いません。** 保存先の変更だけでは既存写真は移動されません。ホストの停止・スリープ中は利用できません。再起動後にもDocker・Tailscale・アプリが復帰し、HTTPS経由で写真を表示できることを実機で確認してください。バックアップ・復元は[運用手順](docs/operations.md)に従います。
 
 ---
 
