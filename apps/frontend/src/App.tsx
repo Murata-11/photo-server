@@ -1,4 +1,5 @@
 import { BulkTrashDialog } from './BulkTrashDialog';
+import './mobile-dark.css';
 import { BulkAlbumDialog } from './BulkAlbumDialog';
 import { AlbumEditor } from './AlbumEditor';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
@@ -55,17 +56,28 @@ const navigation = [
 export function App({
   initialPath = '/',
   initialUploadOpen = false,
+  designPreview = false,
 }: {
   initialPath?: string;
   initialUploadOpen?: boolean;
+  designPreview?: boolean;
 }) {
   return (
     <MemoryRouter initialEntries={[initialPath]}>
-      <PhotoApp initialUploadOpen={initialUploadOpen} />
+      <PhotoApp
+        initialUploadOpen={initialUploadOpen}
+        designPreview={designPreview}
+      />
     </MemoryRouter>
   );
 }
-function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
+function PhotoApp({
+  initialUploadOpen,
+  designPreview,
+}: {
+  initialUploadOpen: boolean;
+  designPreview: boolean;
+}) {
   const acceptedTypes = ['image/jpeg', 'image/png', 'image/webp'];
   const formatMessage = 'JPEG・PNG・WebPの静止画像を選んでください';
   const [photos, setPhotos] = useState<Photo[]>([]),
@@ -626,7 +638,7 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
     );
   }
   return (
-    <div className="app-shell">
+    <div className={`app-shell${designPreview ? ' mobile-dark' : ''}`}>
       <Toaster position="bottom-center" richColors />
       <header className="topbar">
         <button
@@ -805,7 +817,10 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
       </main>
       {!mobileMenu && (
         <nav className="mobile-bottom-nav" aria-label="メインナビゲーション">
-          {navigation.map(({ to, label, icon: Icon }) => (
+          {(designPreview
+            ? navigation.filter(({ to }) => to !== '/favorites')
+            : navigation
+          ).map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -820,6 +835,17 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
               <span>{label}</span>
             </NavLink>
           ))}
+          {designPreview && (
+            <button
+              className="mobile-nav-link"
+              onClick={() => setAlbumModal(true)}
+            >
+              <span className="mobile-nav-icon">
+                <Plus size={22} />
+              </span>
+              <span>作成</span>
+            </button>
+          )}
         </nav>
       )}
       <BulkTrashDialog

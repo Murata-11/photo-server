@@ -3,7 +3,11 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 
 // iframeで実際の393px幅を作り、共通AppのレスポンシブUIを表示する。
 // デスクトップ上でもCSSのmedia query・ダイアログ・固定ナビを同条件で確認できる。
-function IPhone16Preview() {
+export function IPhone16Preview({
+  storyId = 'アプリ-ひより--playground',
+}: {
+  storyId?: string;
+}) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
@@ -36,7 +40,7 @@ function IPhone16Preview() {
   }, [attempt]);
   const source =
     './iframe.html?id=' +
-    encodeURIComponent('アプリ-ひより--playground') +
+    encodeURIComponent(storyId) +
     '&viewMode=story&previewAttempt=' +
     attempt;
   return (
@@ -91,6 +95,7 @@ function IPhone16Preview() {
 const meta = {
   title: 'スマートフォン/iPhone 16',
   component: IPhone16Preview,
+  excludeStories: ['IPhone16Preview'],
   parameters: { layout: 'fullscreen' },
 } satisfies Meta<typeof IPhone16Preview>;
 export default meta;
