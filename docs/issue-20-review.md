@@ -2,22 +2,22 @@
 
 - Issue：<https://github.com/Murata-11/photo-server/issues/20>
 - 基準main：`4b89809`（Issue #22の実装PR #31まで反映）。
-- 状態：仕様提案。POの対象コミット承認・仕様PRマージ前につきready未付与。
+- 状態：仕様PR #32（ba4bd62）はPOが承認・main dfb8a2fへマージ済み。「マージした。readyにして」「実装に進んで」に基づきready・in-progressを付与し実装。実装結果は[検証記録](issue-20-validation.md)を参照。以下は仕様段階のレビュー方法も含む。
 - 製品ルール：product.md第12節。API：OpenAPI `createPhoto`。構成：[ADR 0006](decisions/0006-heic-upload.md)。
 
 ## 画面レビュー
 
 `pnpm storybook`で「Issue 20 / 48MP・HEICアップロード」を開く。追加ダイアログを最初から表示する。Normalは案内と選択→成功、Savingは選択後の処理中、Pixel Limit / Corrupt / Mismatch / Multiple / Unsupported / Busyは選択後の理由別エラーと再試行を確認する。容量超過は50MiB超の合成ファイル、未対応MIMEはGIF等を選択し、通信前の拒否を確認する。PC 1440×1000・スマートフォン393×852、キーボードTab/Escapeで確認する。
 
-通常アプリと同じAppを使用し、`uploadSpecPreview`を指定したStoryだけ新しい形式・上限の案内を表示する。通常アプリは現行のJPEG/PNG/WebPを維持する。実装PRでプレビュー分岐を撤去し、承認仕様へ統一する。
+通常アプリと同じAppを使用する。実装ではレビュー専用の形式分岐を撤去し、通常起動・Storybookとも承認仕様のHEIC・60MP対応へ統一した。Storyの`initialUploadOpen`はダイアログを最初から開くためだけの引数で、受付仕様を切り替えない。
 
 HEICのモックは表示画像を架空写真JPEGで代用する。HEICのデコード・向き・バイト一致・寸法検証は保証せず、実APIで別途確認する。エラーはStoryごとに模擬する。巨大な画像をブラウザーで生成しない。
 
-## readyまでの確認
+## ready判定（完了）
 
-目的・対象範囲・対象外・受け入れ条件はIssue本文と製品仕様に整理する。UI変更・API変更の両方があるため、仕様PR、対象コミット、Story、operationId、POの承認記録をIssueから参照する。承認済み仕様PRをmainへマージした後にreadyを代理付与する（今回の依頼に基づく）。仕様提案の保存・テスト成功を承認に置き換えない。
+目的・対象範囲・対象外・受け入れ条件はIssue本文と製品仕様に整理する。UI変更・API変更の両方があるため、仕様PR、対象コミット、Story、operationId、POの承認記録をIssueから参照する。仕様PR #32をPOが承認・mainへマージ後、明示依頼に基づきreadyを代理付与した。実装PRのマージ・本番反映は別承認。
 
-POの確認対象は60MP上限・HEICの対応範囲とMIME、ネイティブデコーダー構成、1GiB/CPU 2での検証予算・直列処理/待機/時間上限、実機確認の担当と時点。Dockerビルド・実デコード・メモリ測定・実API試験は実装PRでAIが行い、失敗時はready条件を再確認する。Windows/iPhone/Safariはマージ／リリース前にPOが確認する案。
+仕様PRでPOが確認・承認した対象は60MP上限・HEICの対応範囲とMIME、ネイティブデコーダー構成、1GiB/CPU 2での検証予算・直列処理/待機/時間上限、実機確認の担当と時点。Dockerビルド・実デコード・メモリ測定・実API試験は実装PRでAIが行い、失敗時はready条件を再確認する。Windows/iPhone/Safariはマージ／リリース前にPOが確認する案。
 
 ## 実装PRでの受け入れ条件の検証
 

@@ -1,6 +1,8 @@
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
+  // HEIC requires the native Docker runtime and runs in its own CI job.
+  testIgnore: ['heic.spec.ts'],
   workers: 1,
   use: {
     baseURL: 'http://127.0.0.1:3000',

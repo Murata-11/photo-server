@@ -1,7 +1,7 @@
-# ADR 0006：48MP・HEICアップロード（提案）
+# ADR 0006：48MP・HEICアップロード（承認済み仕様）
 
 - 対象：Issue #20。2026-11-11の「Issue20をreadyにしたい」に基づく仕様具体化。
-- 状態：提案。対象コミットのPO承認・仕様PRのマージは未実施。実装・本番反映の承認とは扱わない。
+- 状態：仕様承認済み。2026-11-11、POが仕様PR #32（ba4bd62）をmain dfb8a2fへマージし、「マージした。readyにして」「実装に進んで」と明示。Issue #20の承認記録に基づき実装・検証・Draft PR作成まで進める。実装PRのマージ・本番反映は別承認。
 
 ## 形式と保存
 
@@ -45,3 +45,11 @@ POがマージ／リリース前に許諾した48MPのiPhone実機素材で、Wi
 ローカルのnpm標準バイナリはlibvips 8.18.7・libheif 1.23.5を含むが、`sharp.format.heif.input.fileSuffix`は`.avif`のみでlibde265もバージョン一覧にない。HEIFローダーがあることをHEVCデコード対応の根拠にしない。
 
 タグの存在・ソースの確認を、Dockerのビルド成功・実デコード成功・安全性の実測と取り違えない。
+
+## 実装記録
+
+固定ソースとSHA-256は`native/build.sh`、HEIFの構造検査は`native/heif-inspect.cc`、sharpのソースビルドと配布時のバイナリ保持は`apps/backend/scripts/build-native-sharp.mjs`を参照。プリビルド版への戻りを検出し、最終イメージで合成HEICをデコードする。ネイティブライブラリのライセンスは`/opt/native/share/licenses/`へ保存する。通常のDocker/ComposeではOSのCAを使い、クラウドでビルドするときだけ任意のproxy_ca secretを渡せる。
+
+画像処理は`image-processor.ts`の共有キューと`image-worker.ts`で行う。HEIF検査はlibheifの独立画像数・トラック数・item種別を使い、AVIFのブランドをHEICに偽装しても受け付けない。libvips 8.18.7はHEIFコンテナの回転を適用し、情報としてのEXIF orientationを除去する実装のため、後段のrotateで二重適用しない。寸法宣言と実デコードの不一致を許可する例外は追加しない。
+
+検証結果・環境制約は[Issue #20実装検証](../issue-20-validation.md)を参照。仕様当時の「案」「未検証」は計画の記録であり、実測結果は検証記録で区別する。

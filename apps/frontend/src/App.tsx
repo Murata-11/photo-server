@@ -55,31 +55,32 @@ const navigation = [
 ];
 export function App({
   initialPath = '/',
-  uploadSpecPreview = false,
+  initialUploadOpen = false,
 }: {
   initialPath?: string;
-  /** Issue #20の仕様レビュー専用。実APIの対応完了までは通常起動で有効にしない。 */
-  uploadSpecPreview?: boolean;
+  initialUploadOpen?: boolean;
 }) {
   return (
     <MemoryRouter initialEntries={[initialPath]}>
-      <PhotoApp uploadSpecPreview={uploadSpecPreview} />
+      <PhotoApp initialUploadOpen={initialUploadOpen} />
     </MemoryRouter>
   );
 }
-function PhotoApp({ uploadSpecPreview }: { uploadSpecPreview: boolean }) {
-  const acceptedTypes = uploadSpecPreview
-    ? ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
-    : ['image/jpeg', 'image/png', 'image/webp'];
-  const formatMessage = uploadSpecPreview
-    ? 'JPEG・PNG・WebP・HEICの静止画像を選んでください'
-    : 'JPEG・PNG・WebPの画像を選んでください';
+function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
+  const acceptedTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/heic',
+    'image/heif',
+  ];
+  const formatMessage = 'JPEG・PNG・WebP・HEICの静止画像を選んでください';
   const [photos, setPhotos] = useState<Photo[]>([]),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(''),
     [query, setQuery] = useState(''),
     [compact, setCompact] = useState(false),
-    [upload, setUpload] = useState(uploadSpecPreview),
+    [upload, setUpload] = useState(initialUploadOpen),
     [uploading, setUploading] = useState(false),
     [deletePhoto, setDeletePhoto] = useState<Photo | null>(null),
     [albumModal, setAlbumModal] = useState(false),
@@ -888,11 +889,7 @@ function PhotoApp({ uploadSpecPreview }: { uploadSpecPreview: boolean }) {
             <strong>
               {uploading ? '写真を追加しています…' : '写真を選択する'}
             </strong>
-            <span>
-              {uploadSpecPreview
-                ? 'JPEG・PNG・WebP・HEIC ／ 1枚50MB・6,000万画素まで'
-                : 'JPEG・PNG・WebP ／ 1枚50MBまで'}
-            </span>
+            <span>JPEG・PNG・WebP・HEIC ／ 1枚50MB・6,000万画素まで</span>
           </button>
           <p className="modal-note">
             追加した写真は、ふたりのライブラリに保存されます。

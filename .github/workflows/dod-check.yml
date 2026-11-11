@@ -79,6 +79,71 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  heic:
+    name: HEIC Docker integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17.9-bookworm
+        env:
+          POSTGRES_USER: photo
+          POSTGRES_PASSWORD: ci-heic-only
+          POSTGRES_DB: photo_heic
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U photo -d photo_heic"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build real HEVC runtime (includes decode smoke test)
+        run: docker build -t photo-heic .
+      - name: Verify HEIC API under the approved resource budget
+        run: |
+          mkdir -p work
+          docker run --init -d --name heic-app --memory=1g --cpus=2 --pids-limit=128 \
+            --add-host host.docker.internal:host-gateway -p 127.0.0.1:34020:3000 \
+            -e DATABASE_URL=postgresql://photo:ci-heic-only@host.docker.internal:5432/photo_heic \
+            -e APP_ORIGIN=http://127.0.0.1:34020 \
+            -e ALLOWED_USERS=first@example.test,second@example.test \
+            -e DEV_USER=first@example.test photo-heic
+          curl --retry 30 --retry-delay 1 --retry-all-errors -fsS http://127.0.0.1:34020/api/me
+          test "$(docker exec heic-app cat /sys/fs/cgroup/memory.max)" = 1073741824
+          node apps/backend/scripts/check-heic.mjs | tee work/heic-api.json
+          docker exec heic-app cat /sys/fs/cgroup/memory.peak | tee work/heic-memory-peak.txt
+          test "$(docker inspect --format '{{.State.OOMKilled}}' heic-app)" = false
+          docker restart heic-app
+          curl --retry 30 --retry-delay 1 --retry-all-errors -fsS http://127.0.0.1:34020/api/me
+          node apps/backend/scripts/check-heic.mjs --verify-restart
+      - name: Install browser for real HEIC flows
+        run: pnpm --filter @photo-server/frontend exec playwright install --with-deps chromium
+      - name: Select installed Chromium
+        run: |
+          pnpm --filter @photo-server/frontend exec node --input-type=module -e "import {chromium} from '@playwright/test'; console.log('PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH='+chromium.executablePath())" >> "$GITHUB_ENV"
+      - name: Verify real HEIC UI on PC and smartphone
+        run: pnpm --filter @photo-server/frontend exec playwright test --config playwright.heic.config.ts
+      - name: Save HEIC evidence
+        if: ${{ always() }}
+        run: |
+          mkdir -p work
+          docker logs heic-app > work/heic-container.log 2>&1 || true
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: heic-${{ github.sha }}
+          path: |
+            work/heic-*
+            apps/frontend/test-results/
+          retention-days: 7
+
   secrets:
     name: secrets
     runs-on: ubuntu-24.04
@@ -104,7 +169,7 @@ jobs:
   dod-check:
     name: dod-check
     if: ${{ always() }}
-    needs: [quality, secrets]
+    needs: [quality, secrets, heic]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
@@ -112,6 +177,8 @@ jobs:
         env:
           QUALITY_RESULT: ${{ needs.quality.result }}
           SECRETS_RESULT: ${{ needs.secrets.result }}
+          HEIC_RESULT: ${{ needs.heic.result }}
         run: |
           test "$QUALITY_RESULT" = success
           test "$SECRETS_RESULT" = success
+          test "$HEIC_RESULT" = success

@@ -96,7 +96,6 @@ paths:
                     主画像に従属するサムネイル・補助画像は独立写真として取り込まない。
                     MIMEと実際の画像形式を照合し、拡張子だけで信頼しない。
                     元バイト列・元形式を保持し、表示用は向きを反映したメタデータなしのJPEG。
-                    Issue #20の提案契約。仕様承認・マージ後の実装PRで提供する。
   /api/photos/{id}:
     parameters:
       - name: id
@@ -435,6 +434,13 @@ components:
       additionalProperties: false
       required: [message]
       properties:
+        code:
+          type: string
+          description: 既存共通エラー応答のHTTPコード。
+        requestId:
+          type: string
+          format: uuid
+          description: 既存共通エラー応答のリクエスト識別子。
         message:
           type: string
           description: 利用者向けの理由。内部パス・スタック・デコーダーの生の例外は含めない。

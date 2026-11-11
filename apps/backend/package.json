@@ -10,7 +10,9 @@
     "dev": "node --env-file-if-exists=../../.env --import tsx --watch src/index.ts",
     "start": "node --env-file-if-exists=../../.env dist/index.js",
     "migrate": "node --env-file-if-exists=../../.env --import tsx src/migrate.ts",
-    "test:integration": "vitest run src/integration.test.ts"
+    "test:integration": "vitest run src/integration.test.ts",
+    "build:native-sharp": "node scripts/build-native-sharp.mjs",
+    "check:heic": "node scripts/check-heic.mjs"
   },
   "dependencies": {
     "@hono/node-server": "2.1.6",

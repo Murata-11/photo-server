@@ -148,6 +148,13 @@ export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
     UploadError: {
+      /** @description 既存共通エラー応答のHTTPコード。 */
+      code?: string;
+      /**
+       * Format: uuid
+       * @description 既存共通エラー応答のリクエスト識別子。
+       */
+      requestId?: string;
       /**
        * @description 利用者向けの理由。内部パス・スタック・デコーダーの生の例外は含めない。
        * @example 6,000万画素以下の画像を選んでください
@@ -277,7 +284,7 @@ export interface operations {
         'multipart/form-data': {
           /**
            * Format: binary
-           * @description JPEG/PNG/WebP/HEICの静止画像、1枚50MiB（52,428,800バイト）以下、 幅×高さが60,000,000以下（上限を含む）。 MIMEはimage/jpeg・image/png・image/webp・image/heic・image/heif。 HEIC/HEIFはHEVCの独立した主画像1枚のみ。AVIF、画像シーケンス、動画は対象外。 主画像に従属するサムネイル・補助画像は独立写真として取り込まない。 MIMEと実際の画像形式を照合し、拡張子だけで信頼しない。 元バイト列・元形式を保持し、表示用は向きを反映したメタデータなしのJPEG。 Issue #20の提案契約。仕様承認・マージ後の実装PRで提供する。
+           * @description JPEG/PNG/WebP/HEICの静止画像、1枚50MiB（52,428,800バイト）以下、 幅×高さが60,000,000以下（上限を含む）。 MIMEはimage/jpeg・image/png・image/webp・image/heic・image/heif。 HEIC/HEIFはHEVCの独立した主画像1枚のみ。AVIF、画像シーケンス、動画は対象外。 主画像に従属するサムネイル・補助画像は独立写真として取り込まない。 MIMEと実際の画像形式を照合し、拡張子だけで信頼しない。 元バイト列・元形式を保持し、表示用は向きを反映したメタデータなしのJPEG。
            */
           file: string;
         };
