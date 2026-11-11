@@ -53,20 +53,33 @@ const navigation = [
   { to: '/favorites', label: 'お気に入り', icon: Heart },
   { to: '/albums', label: 'アルバム', icon: FolderHeart },
 ];
-export function App({ initialPath = '/' }: { initialPath?: string }) {
+export function App({
+  initialPath = '/',
+  uploadSpecPreview = false,
+}: {
+  initialPath?: string;
+  /** Issue #20の仕様レビュー専用。実APIの対応完了までは通常起動で有効にしない。 */
+  uploadSpecPreview?: boolean;
+}) {
   return (
     <MemoryRouter initialEntries={[initialPath]}>
-      <PhotoApp />
+      <PhotoApp uploadSpecPreview={uploadSpecPreview} />
     </MemoryRouter>
   );
 }
-function PhotoApp() {
+function PhotoApp({ uploadSpecPreview }: { uploadSpecPreview: boolean }) {
+  const acceptedTypes = uploadSpecPreview
+    ? ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
+    : ['image/jpeg', 'image/png', 'image/webp'];
+  const formatMessage = uploadSpecPreview
+    ? 'JPEG・PNG・WebP・HEICの静止画像を選んでください'
+    : 'JPEG・PNG・WebPの画像を選んでください';
   const [photos, setPhotos] = useState<Photo[]>([]),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(''),
     [query, setQuery] = useState(''),
     [compact, setCompact] = useState(false),
-    [upload, setUpload] = useState(false),
+    [upload, setUpload] = useState(uploadSpecPreview),
     [uploading, setUploading] = useState(false),
     [deletePhoto, setDeletePhoto] = useState<Photo | null>(null),
     [albumModal, setAlbumModal] = useState(false),
@@ -143,8 +156,7 @@ function PhotoApp() {
     setUploading(true);
     try {
       for (const file of files) {
-        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type))
-          throw new Error('JPEG・PNG・WebPの画像を選んでください');
+        if (!acceptedTypes.includes(file.type)) throw new Error(formatMessage);
         if (file.size > 50 * 1024 * 1024)
           throw new Error('1枚50MB以下の画像を選んでください');
         const photo = await api.create(file);
@@ -876,7 +888,11 @@ function PhotoApp() {
             <strong>
               {uploading ? '写真を追加しています…' : '写真を選択する'}
             </strong>
-            <span>JPEG・PNG・WebP ／ 1枚50MBまで</span>
+            <span>
+              {uploadSpecPreview
+                ? 'JPEG・PNG・WebP・HEIC ／ 1枚50MB・6,000万画素まで'
+                : 'JPEG・PNG・WebP ／ 1枚50MBまで'}
+            </span>
           </button>
           <p className="modal-note">
             追加した写真は、ふたりのライブラリに保存されます。
@@ -887,7 +903,7 @@ function PhotoApp() {
         type="file"
         ref={fileInput}
         className="hidden"
-        accept="image/jpeg,image/png,image/webp"
+        accept={acceptedTypes.join(',')}
         multiple
         onChange={uploadFiles}
       />
