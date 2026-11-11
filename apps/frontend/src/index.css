@@ -1691,10 +1691,15 @@ h1 {
 .bulk-album-label select {
   width: 100%;
   min-width: 0;
-  padding: 12px;
+  appearance: none;
+  padding: 12px 40px 12px 12px;
   border: 1px solid #cbd5e1;
   border-radius: 12px;
-  background: white;
+  background-color: white;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23475569' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 7.5 5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 20px 20px;
 }
 .bulk-album-actions {
   display: flex;
