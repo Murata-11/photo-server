@@ -23,11 +23,9 @@ export function AlbumEditor({
   onClose: () => void;
 }) {
   const [chosen, setChosen] = useState(photo.albums);
-  const [query, setQuery] = useState('');
   const [onlyMember, setOnlyMember] = useState(false);
   useEffect(() => {
     if (open) {
-      setQuery('');
       setOnlyMember(false);
       setOrdered(
         [...names].sort(
@@ -124,11 +122,7 @@ export function AlbumEditor({
   }
   const visible = ordered.filter(
     (n) =>
-      (!onlyMember ||
-        chosen.includes(n) ||
-        pending.includes(n) ||
-        n in failures) &&
-      n.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
+      !onlyMember || chosen.includes(n) || pending.includes(n) || n in failures,
   );
   return (
     <Dialog
@@ -166,17 +160,9 @@ export function AlbumEditor({
           <DialogTitle className="dialog-title">
             アルバムに追加・解除
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="sr-only">
             チェックを変更すると自動で保存します。
           </DialogDescription>
-          <label>
-            アルバムを検索
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </label>
           <div
             className="album-editor-tabs"
             role="group"
@@ -199,8 +185,11 @@ export function AlbumEditor({
             <span>{chosen.length}件に所属</span>
           </div>
         </header>
-        <fieldset className="album-editor-list">
-          <legend className="sr-only">所属アルバム</legend>
+        <div
+          className="album-editor-list"
+          role="group"
+          aria-label="所属アルバム"
+        >
           {!names.length ? (
             <p>アルバムを作成すると追加できます。</p>
           ) : !visible.length ? (
@@ -233,7 +222,7 @@ export function AlbumEditor({
               </div>
             ))
           )}
-        </fieldset>
+        </div>
         {refreshError && (
           <footer className="album-editor-footer">
             <p role="alert">最新の所属を取得できませんでした</p>

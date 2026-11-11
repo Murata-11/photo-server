@@ -1571,7 +1571,7 @@ h1 {
   max-height: min(65dvh, calc(100dvh - var(--album-anchor-top) - 16px));
   height: auto;
   padding: 0;
-  overflow: hidden;
+  overflow: clip;
   top: var(--album-anchor-top);
   right: max(16px, calc(100vw - var(--album-anchor-right)));
   left: auto;
@@ -1590,19 +1590,6 @@ h1 {
 .album-editor-header [id] {
   overflow-wrap: anywhere;
 }
-.album-editor-header label {
-  display: block;
-  margin-top: 12px;
-}
-.album-editor-header input {
-  display: block;
-  width: 100%;
-  min-height: 44px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 16px;
-}
 .album-editor-tabs {
   display: flex;
   align-items: center;
@@ -1620,6 +1607,7 @@ h1 {
 .album-editor-list {
   flex: 0 1 auto;
   min-height: 0;
+  min-width: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0 20px 12px;
@@ -1668,7 +1656,7 @@ h1 {
 .album-editor button:disabled {
   opacity: 0.5;
 }
-@media (max-width: 640px) {
+@media (max-width: 640px), (max-height: 500px) {
   .album-editor {
     width: 100vw;
     max-width: none;
@@ -1688,4 +1676,29 @@ h1 {
     padding-left: 16px;
     padding-right: 16px;
   }
+}
+
+@media (max-height: 500px) {
+  .album-editor {
+    max-height: calc(100dvh - 12px);
+  }
+  .album-editor-header {
+    padding-top: 12px;
+  }
+}
+@media (max-width: 640px) {
+  .detail-actions button,
+  .detail-actions a {
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .detail-action-label {
+    display: none;
+  }
+}
+.album-editor > button[aria-label='閉じる'] {
+  width: 44px;
+  height: 44px;
+  top: 8px;
+  right: 8px;
 }

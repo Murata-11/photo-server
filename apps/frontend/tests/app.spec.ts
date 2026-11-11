@@ -279,7 +279,9 @@ for (const width of [1280, 393]) {
     await expect(page.getByRole('button', { name: '変更を保存' })).toHaveCount(
       0,
     );
-    await page.getByRole('searchbox').fill('空');
+    await expect(page.getByRole('dialog').getByRole('searchbox')).toHaveCount(
+      0,
+    );
     await page
       .getByRole('checkbox', { name: '空のアルバム', exact: true })
       .click();
@@ -345,12 +347,15 @@ for (const width of [1280, 393]) {
         .getByRole('group', { name: '所属アルバム' })
         .evaluate((el) => el.scrollHeight > el.clientHeight),
     ).toBe(true);
-    await page.getByRole('searchbox').fill('とても長い');
-    await expect(page.getByRole('checkbox')).toHaveCount(1);
+    const longName = page.getByRole('checkbox', {
+      name: 'とても長いアルバム名'.repeat(8),
+      exact: true,
+    });
+    await longName.scrollIntoViewIfNeeded();
+    await expect(longName).toBeVisible();
     expect(
       await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth),
     ).toBe(true);
-    await page.getByRole('searchbox').fill('');
     await page.getByRole('button', { name: '所属中', exact: true }).click();
     await expect(page.getByRole('checkbox')).toHaveCount(8);
     await page.keyboard.press('Escape');
@@ -358,5 +363,86 @@ for (const width of [1280, 393]) {
     await expect(
       page.getByRole('heading', { name: '湖畔の朝', exact: true }),
     ).toBeVisible();
+  });
+}
+
+for (const [width, height] of [
+  [320, 568],
+  [375, 667],
+  [393, 852],
+  [852, 393],
+]) {
+  test(`タッチ端末でアルバム一覧を最後まで操作 ${width}x${height}`, async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({
+      viewport: { width, height },
+      isMobile: true,
+      hasTouch: true,
+    });
+    const page = await context.newPage();
+    for (const story of ['many-albums', 'trash']) {
+      await page.goto(
+        'http://127.0.0.1:6006/iframe.html?id=' +
+          encodeURIComponent('issue-21-複数アルバム--' + story) +
+          '&viewMode=story',
+      );
+      const trigger = page.getByRole('button', {
+        name: 'アルバムに追加・解除',
+        exact: true,
+      });
+      await expect(trigger).toBeVisible();
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      const toolbar = await page.locator('.detail-actions').boundingBox();
+      expect(
+        toolbar && toolbar.x >= 0 && toolbar.x + toolbar.width <= width,
+      ).toBeTruthy();
+      await trigger.tap();
+      const panel = page.getByRole('dialog'),
+        list = page.getByRole('group', { name: '所属アルバム' });
+      await expect(panel.getByRole('searchbox')).toHaveCount(0);
+      const bounds = await panel.boundingBox();
+      expect(
+        bounds &&
+          bounds.x >= 0 &&
+          bounds.y >= 0 &&
+          bounds.x + bounds.width <= width &&
+          bounds.y + bounds.height <= height + 1,
+      ).toBeTruthy();
+      expect(await list.evaluate((el) => el.clientHeight)).toBeGreaterThan(96);
+      const last = panel.getByRole('checkbox').last();
+      await last.scrollIntoViewIfNeeded();
+      await last.tap();
+      await expect(last).toBeEnabled();
+      const row = await last.boundingBox();
+      expect(row && row.y >= 0 && row.y + row.height <= height).toBeTruthy();
+      const heading = panel.getByRole('heading', {
+        name: 'アルバムに追加・解除',
+        exact: true,
+      });
+      const headingBounds = await heading.boundingBox();
+      expect(
+        headingBounds &&
+          bounds &&
+          headingBounds.y >= bounds.y &&
+          headingBounds.y + headingBounds.height <= bounds.y + bounds.height,
+      ).toBeTruthy();
+      expect(await panel.evaluate((el) => el.scrollTop)).toBe(0);
+      const close = page.getByRole('button', { name: '閉じる', exact: true });
+      const closeBounds = await close.boundingBox();
+      expect(
+        closeBounds && closeBounds.width >= 44 && closeBounds.height >= 44,
+      ).toBeTruthy();
+      await page.screenshot({
+        path: '../../work/album-fixed-' + width + '-' + story + '.png',
+      });
+      await close.tap();
+      await expect(panel).toHaveCount(0);
+    }
+    await context.close();
   });
 }

@@ -36,7 +36,7 @@ it('saves immediately and preserves the other memberships', async () => {
   );
   expect(api.removeAlbum).not.toHaveBeenCalled();
   expect(onClose).not.toHaveBeenCalled();
-  await user.type(screen.getByRole('searchbox'), '元の');
+  expect(screen.queryByRole('searchbox')).toBeNull();
   await user.click(screen.getByRole('checkbox', { name: '元の所属' }));
   await waitFor(() =>
     expect(api.removeAlbum).toHaveBeenCalledExactlyOnceWith('1', '元の所属'),

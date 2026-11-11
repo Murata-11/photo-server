@@ -509,6 +509,8 @@ function PhotoApp() {
             {photo.deleted ? (
               <Button
                 variant="secondary"
+                aria-label="復元"
+                title="復元"
                 onClick={async () => {
                   if (await update(photo, { deleted: false })) {
                     toast.success('写真を復元しました');
@@ -517,7 +519,7 @@ function PhotoApp() {
                 }}
               >
                 <RotateCcw size={16} />
-                復元
+                <span className="detail-action-label">復元</span>
               </Button>
             ) : (
               <Button
