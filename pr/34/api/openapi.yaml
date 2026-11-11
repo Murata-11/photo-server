@@ -1,0 +1,503 @@
+openapi: 3.1.0
+info:
+  title: Photo server API
+  version: 1.0.0
+  description: 既存モック画面に対応する実装契約。元ファイル・EXIF保持、外部位置情報送信なし。ゴミ箱は期限なし、完全削除なし。
+paths:
+  /api/photos:
+    get:
+      operationId: listPhotos
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Photo'
+        '400':
+          description: Invalid input
+        '404':
+          description: Not found
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '409':
+          description: Already exists
+        '413':
+          description: Too large
+        '415':
+          description: Unsupported image
+        '422':
+          description: Corrupt image
+        '500':
+          description: Internal error
+    post:
+      operationId: createPhoto
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Photo'
+        '400':
+          description: Invalid input
+        '404':
+          description: Not found
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '409':
+          description: Already exists
+        '413':
+          description: ファイル本体が50MiBを超える（multipartの外枠とは別に検証）
+        '415':
+          description: 未対応のMIMEまたは画像コーデック（HEIF内のHEVC静止画以外を含む）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadError'
+        '422':
+          description: 空・破損・形式不一致・複数画像/動画・60,000,000画素超過。理由をmessageで区別する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadError'
+        '503':
+          description: 画像処理枠が満杯、処理時間上限、またはデコーダー障害。破損画像として通知しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadError'
+        '500':
+          description: Internal error
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: >-
+                    JPEG/PNG/WebP/HEICの静止画像、1枚50MiB（52,428,800バイト）以下、
+                    幅×高さが60,000,000以下（上限を含む）。
+                    MIMEはimage/jpeg・image/png・image/webp・image/heic・image/heif。
+                    HEIC/HEIFはHEVCの独立した主画像1枚のみ。AVIF、画像シーケンス、動画は対象外。
+                    主画像に従属するサムネイル・補助画像は独立写真として取り込まない。
+                    MIMEと実際の画像形式を照合し、拡張子だけで信頼しない。
+                    元バイト列・元形式を保持し、表示用は向きを反映したメタデータなしのJPEG。
+  /api/photos/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      operationId: updatePhoto
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Photo'
+        '400':
+          description: Invalid input
+        '404':
+          description: Not found
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '409':
+          description: Already exists
+        '413':
+          description: Too large
+        '415':
+          description: Unsupported image
+        '422':
+          description: Corrupt image
+        '500':
+          description: Internal error
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                favorite:
+                  type: boolean
+                deleted:
+                  type: boolean
+              additionalProperties: false
+  /api/photos/albums:
+    put:
+      operationId: addPhotosAlbum
+      description: 既存アルバムへ通常写真を一括追加する。全件を同一トランザクションで確定し、エラーでは全件変更しない。既存所属を保持し、追加済みは成功。再送は冪等。同一写真の追加・解除・ゴミ箱移動と直列化し、異なる所属を失わない。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [photoIds, name]
+              properties:
+                photoIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  uniqueItems: true
+                  items:
+                    type: string
+                    format: uuid
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  description: 既存アルバム名との完全一致。自動作成・トリムはしない。
+      responses:
+        '204':
+          description: 全件成功（追加済みを含む）。本文なし。所属・枚数・表紙を再取得する。
+        '400':
+          description: JSON・UUID・件数・重複ID・名前・未知フィールドが不正。変更なし。
+        '401':
+          description: Identity missing。変更なし。
+        '403':
+          description: Not allowed / CSRF。変更なし。
+        '404':
+          description: 写真またはアルバムが存在しない。変更なし。409より優先する。
+        '409':
+          description: ゴミ箱内写真を含む。変更なし。再取得して対象を選び直す。
+        '500':
+          description: Internal error。トランザクションは取り消す。応答喪失時は結果不明として安全に再送可能。
+  /api/photos/{id}/albums:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: addPhotoAlbum
+      description: 所属を1件追加。追加済みでも成功。他の所属は変更しない。 ゴミ箱内でも操作可能。異なる所属への操作は独立。同一所属はDB適用順で最終状態が決まる。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  description: 既存アルバム名との完全一致。自動作成・トリムはしない。
+      responses:
+        '204':
+          description: 成功。本文なし。所属・枚数・表紙を再取得する。
+        '400':
+          description: 不正なUUID・JSON・アルバム名・未知のフィールド
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '404':
+          description: 写真またはアルバムが存在しない（解除も同様）
+        '500':
+          description: Internal error
+    delete:
+      operationId: removePhotoAlbum
+      description: 所属を1件解除。未所属でも成功。写真と他の所属は変更しない。 ゴミ箱内でも操作可能。異なる所属への操作は独立。同一所属はDB適用順で最終状態が決まる。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  description: 既存アルバム名との完全一致。自動作成・トリムはしない。
+      responses:
+        '204':
+          description: 成功。本文なし。所属・枚数・表紙を再取得する。
+        '400':
+          description: 不正なUUID・JSON・アルバム名・未知のフィールド
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '404':
+          description: 写真またはアルバムが存在しない（解除も同様）
+        '500':
+          description: Internal error
+  /api/albums:
+    get:
+      operationId: listAlbums
+      responses:
+        '200':
+          description: Albums
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '400':
+          description: Invalid input
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '404':
+          description: Not found
+        '409':
+          description: Already exists
+        '413':
+          description: Too large
+        '415':
+          description: Unsupported image
+        '422':
+          description: Corrupt image
+        '500':
+          description: Internal error
+    post:
+      operationId: createAlbum
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+      responses:
+        '200':
+          description: Created album name
+          content:
+            application/json:
+              schema:
+                type: string
+        '400':
+          description: Invalid input
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '404':
+          description: Not found
+        '409':
+          description: Already exists
+        '413':
+          description: Too large
+        '415':
+          description: Unsupported image
+        '422':
+          description: Corrupt image
+        '500':
+          description: Internal error
+  /api/me:
+    get:
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - displayName
+                properties:
+                  displayName:
+                    type: string
+        '400':
+          description: Invalid input
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '404':
+          description: Not found
+        '409':
+          description: Already exists
+        '413':
+          description: Too large
+        '415':
+          description: Unsupported image
+        '422':
+          description: Corrupt image
+        '500':
+          description: Internal error
+  /api/photos/{id}/original:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: originalPhoto
+      responses:
+        '200':
+          description: 元バイト列。ゴミ箱内でも許可利用者は取得可能。
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid input
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '404':
+          description: Not found
+        '409':
+          description: Already exists
+        '413':
+          description: Too large
+        '415':
+          description: Unsupported image
+        '422':
+          description: Corrupt image
+        '500':
+          description: Internal error
+  /api/photos/{id}/thumbnail:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: thumbnailPhoto
+      responses:
+        '200':
+          description: EXIF除去済みJPEG
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid input
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '404':
+          description: Not found
+        '409':
+          description: Already exists
+        '413':
+          description: Too large
+        '415':
+          description: Unsupported image
+        '422':
+          description: Corrupt image
+        '500':
+          description: Internal error
+components:
+  schemas:
+    UploadError:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        code:
+          type: string
+          description: 既存共通エラー応答のHTTPコード。
+        requestId:
+          type: string
+          format: uuid
+          description: 既存共通エラー応答のリクエスト識別子。
+        message:
+          type: string
+          description: 利用者向けの理由。内部パス・スタック・デコーダーの生の例外は含めない。
+          examples:
+            - 6,000万画素以下の画像を選んでください
+            - 画像の形式と内容が一致しません
+            - 複数画像・アニメーション・動画には対応していません
+            - 画像を読み込めません。破損していない画像を選んでください
+            - JPEG・PNG・WebP・HEICの静止画像を選んでください
+            - 画像を処理できませんでした。時間をおいて再試行してください
+    Photo:
+      type: object
+      required:
+        - id
+        - src
+        - name
+        - date
+        - location
+        - favorite
+        - deleted
+        - albums
+        - createdAt
+        - originalUrl
+      properties:
+        id:
+          type: string
+        src:
+          type: string
+        name:
+          type: string
+        date:
+          type: string
+        location:
+          type: string
+        favorite:
+          type: boolean
+        deleted:
+          type: boolean
+        albums:
+          type: array
+          uniqueItems: true
+          description: 所属アルバム名。未所属は空配列。DBの名前順で返す。
+          items:
+            type: string
+            minLength: 1
+            maxLength: 100
+        createdAt:
+          type: string
+          format: date-time
+        originalUrl:
+          type: string
+  securitySchemes:
+    tailscaleIdentity:
+      type: http
+      scheme: tailscale
+      description:
+        'Tailscale Serveが上書きするTailscale-User-Loginをループバック専用サーバーで検証。PC内プロセスを信頼する。更新はOrigin完全一致とX-Photo-Request:
+        1が必要。'
+security:
+  - tailscaleIdentity: []
