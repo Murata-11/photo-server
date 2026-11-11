@@ -1,5 +1,6 @@
-import { cp, lstat, readdir, rm, writeFile } from 'node:fs/promises';
+import { cp, lstat, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 export function previewPath(number) {
   if (!Number.isSafeInteger(number) || number < 1) {
@@ -56,9 +57,35 @@ export async function updatePreview({
     if (!/^[a-f0-9]{40}$/.test(sha)) throw new Error('Invalid commit SHA');
     await validateArtifact(artifact);
   }
-  await rm(target, { recursive: true, force: true });
-  if (!remove) {
-    await cp(artifact, target, { recursive: true });
+  if (remove) {
+    await rm(target, { recursive: true, force: true });
+  } else {
+    // HTML・インデックスは最新へ更新し、旧タブが遅延読込するassetsはPR closeまで保持。
+    // 結合後にも検証し、上限超過や不正な既存ファイルで公開中の資料を壊さない。
+    const stage = await mkdtemp(join(tmpdir(), 'review-assets-'));
+    try {
+      await cp(artifact, stage, { recursive: true });
+      const oldAssets = join(target, 'storybook/assets');
+      let exists = false;
+      try {
+        await lstat(oldAssets);
+        exists = true;
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+      if (exists) {
+        await cp(oldAssets, join(stage, 'storybook/assets'), {
+          recursive: true,
+          force: false,
+          errorOnExist: false,
+        });
+      }
+      await validateArtifact(stage);
+      await rm(target, { recursive: true, force: true });
+      await cp(stage, target, { recursive: true });
+    } finally {
+      await rm(stage, { recursive: true, force: true });
+    }
     await writeFile(
       join(target, 'revision.html'),
       `<!doctype html><html lang="ja"><meta charset="utf-8"><title>レビュー対象</title><h1>PR #${number}</h1><p>対象コミット: <code>${sha}</code></p><a href="./">レビューの入口</a></html>`,
