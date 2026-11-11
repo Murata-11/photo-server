@@ -6,6 +6,7 @@ const story = (name: string) =>
 for (const viewport of [
   { width: 1440, height: 1000 },
   { width: 393, height: 852 },
+  { width: 320, height: 852 },
 ]) {
   test(`一括追加・キャンセル ${viewport.width}`, async ({ page }) => {
     await page.setViewportSize(viewport);
@@ -16,6 +17,25 @@ for (const viewport of [
     await page
       .getByRole('button', { name: '山へ続く道を選択', exact: true })
       .click();
+    const actions = await page
+      .locator('.selection-actions button')
+      .evaluateAll((buttons) =>
+        buttons.map((button) => {
+          const box = button.getBoundingClientRect();
+          return {
+            y: box.y,
+            width: box.width,
+            client: button.clientWidth,
+            scroll: button.scrollWidth,
+          };
+        }),
+      );
+    expect(actions).toHaveLength(2);
+    expect(actions[0]?.y).toBe(actions[1]?.y);
+    for (const action of actions)
+      expect(action.scroll).toBeLessThanOrEqual(action.client);
+    if (viewport.width <= 760)
+      expect(actions[0]?.width).toBe(actions[1]?.width);
     await page
       .getByRole('button', { name: 'アルバムに追加', exact: true })
       .click();

@@ -296,39 +296,44 @@ function PhotoApp() {
         </div>
         {selected.length > 0 && (
           <div className="selection-bar">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="選択解除"
-              onClick={() => setSelected([])}
-            >
-              <X size={18} />
-            </Button>
-            <strong>{selected.length}枚を選択中</strong>
-            {!isTrash && (
+            <div className="selection-summary">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="選択解除"
+                onClick={() => setSelected([])}
+              >
+                <X size={18} />
+              </Button>
+              <strong>{selected.length}枚を選択中</strong>
+            </div>
+            <div className="selection-actions">
+              {!isTrash && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setBulkAlbumOpen(true)}
+                >
+                  <FolderHeart size={16} />
+                  アルバムに追加
+                </Button>
+              )}
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => setBulkAlbumOpen(true)}
+                onClick={async () => {
+                  const failed: string[] = [];
+                  for (const p of photos.filter((p) => selected.includes(p.id)))
+                    if (!(await update(p, { favorite: true })))
+                      failed.push(p.id);
+                  setSelected(failed);
+                  if (!failed.length) toast.success('お気に入りに追加しました');
+                }}
               >
-                <FolderHeart size={16} />
-                アルバムに追加
+                <Heart size={16} />
+                お気に入りに追加
               </Button>
-            )}
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={async () => {
-                const failed: string[] = [];
-                for (const p of photos.filter((p) => selected.includes(p.id)))
-                  if (!(await update(p, { favorite: true }))) failed.push(p.id);
-                setSelected(failed);
-                if (!failed.length) toast.success('お気に入りに追加しました');
-              }}
-            >
-              <Heart size={16} />
-              お気に入りに追加
-            </Button>
+            </div>
           </div>
         )}
         {loading ? (
