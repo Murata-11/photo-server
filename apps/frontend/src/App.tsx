@@ -493,7 +493,8 @@ function PhotoApp() {
               data-album-editor-trigger
               onClick={() => {
                 setEditingAlbumPhoto(photo);
-                setAlbumEditorOpen(true);
+                setAlbumEditorOpen(!albumEditorOpen);
+                setShowInfo(false);
               }}
             >
               <FolderHeart size={20} />
@@ -502,7 +503,10 @@ function PhotoApp() {
               variant="ghost"
               size="icon"
               aria-label="写真の情報"
-              onClick={() => setShowInfo(!showInfo)}
+              onClick={() => {
+                setShowInfo(!showInfo);
+                setAlbumEditorOpen(false);
+              }}
             >
               <Info size={20} />
             </Button>

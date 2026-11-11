@@ -1,11 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from './components/ui/dialog';
+import { X } from 'lucide-react';
 import { api } from './lib/api';
 import type { components } from './lib/api.generated';
 type Photo = components['schemas']['Photo'];
@@ -23,21 +18,14 @@ export function AlbumEditor({
   onClose: () => void;
 }) {
   const [chosen, setChosen] = useState(photo.albums);
-  const [onlyMember, setOnlyMember] = useState(false);
   useEffect(() => {
     if (open) {
-      setOnlyMember(false);
       setOrdered(
         [...names].sort(
           (a, b) =>
             Number(chosen.includes(b)) - Number(chosen.includes(a)) ||
             a.localeCompare(b, 'ja'),
         ),
-      );
-      setAnchor(
-        document
-          .querySelector('[data-album-editor-trigger]')
-          ?.getBoundingClientRect(),
       );
     }
   }, [open]);
@@ -56,11 +44,58 @@ export function AlbumEditor({
     },
     [],
   );
-  const [anchor, setAnchor] = useState(() =>
-    document
-      .querySelector('[data-album-editor-trigger]')
-      ?.getBoundingClientRect(),
-  );
+  const panel = useRef<HTMLElement>(null);
+  const [position, setPosition] = useState({ top: 0, right: 16 });
+  useEffect(() => {
+    if (!open) return;
+    function place() {
+      const detail = document.querySelector('.detail')?.getBoundingClientRect();
+      const trigger = document
+        .querySelector('[data-album-editor-trigger]')
+        ?.getBoundingClientRect();
+      setPosition({
+        top: Math.max(
+          8,
+          Math.min(
+            (detail?.top ?? trigger?.bottom ?? 0) + 48,
+            window.innerHeight - 220,
+          ),
+        ),
+        right: Math.max(
+          16,
+          window.innerWidth - (detail?.right ?? window.innerWidth - 16),
+        ),
+      });
+    }
+    function outside(e: MouseEvent) {
+      if (
+        e.target instanceof Element &&
+        !panel.current?.contains(e.target) &&
+        !e.target.closest('[data-album-editor-trigger]')
+      )
+        onClose();
+    }
+    function escape(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+        document
+          .querySelector<HTMLButtonElement>('[data-album-editor-trigger]')
+          ?.focus();
+      }
+    }
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    document.addEventListener('click', outside);
+    document.addEventListener('keydown', escape);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+      document.removeEventListener('click', outside);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [open, onClose]);
   const [ordered, setOrdered] = useState(() =>
     [...names].sort(
       (a, b) =>
@@ -120,118 +155,68 @@ export function AlbumEditor({
       if (!active.current.size) await refresh();
     }
   }
-  const visible = ordered.filter(
-    (n) =>
-      !onlyMember || chosen.includes(n) || pending.includes(n) || n in failures,
-  );
+  if (!open) return null;
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(open) => {
-        if (!open) onClose();
+    <aside
+      ref={panel}
+      className="info-panel album-editor"
+      role="region"
+      aria-label="アルバムに追加・解除"
+      style={{
+        top: position.top,
+        right: position.right,
+        maxHeight: Math.min(
+          420,
+          Math.max(96, window.innerHeight - position.top - 16),
+        ),
       }}
     >
-      <DialogContent
-        className="album-editor"
-        style={
-          {
-            '--album-anchor-top': `${Math.min(anchor?.bottom ?? 120, window.innerHeight * 0.35) + 8}px`,
-            '--album-anchor-right': `${anchor?.right ?? window.innerWidth - 16}px`,
-          } as React.CSSProperties
-        }
-        onCloseAutoFocus={(e) => {
-          e.preventDefault();
-          requestAnimationFrame(() =>
-            document
-              .querySelector<HTMLButtonElement>('[data-album-editor-trigger]')
-              ?.focus({ preventScroll: true }),
-          );
-        }}
-        onEscapeKeyDown={(e) => {
-          e.preventDefault();
-          onClose();
-        }}
-        onPointerDownOutside={(e) => {
-          e.preventDefault();
-          onClose();
-        }}
-      >
-        <header className="album-editor-header">
-          <DialogTitle className="dialog-title">
-            アルバムに追加・解除
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            チェックを変更すると自動で保存します。
-          </DialogDescription>
-          <div
-            className="album-editor-tabs"
-            role="group"
-            aria-label="アルバムの絞り込み"
-          >
-            <button
-              type="button"
-              aria-pressed={!onlyMember}
-              onClick={() => setOnlyMember(false)}
-            >
-              すべて
-            </button>
-            <button
-              type="button"
-              aria-pressed={onlyMember}
-              onClick={() => setOnlyMember(true)}
-            >
-              所属中
-            </button>
-            <span>{chosen.length}件に所属</span>
-          </div>
-        </header>
-        <div
-          className="album-editor-list"
-          role="group"
-          aria-label="所属アルバム"
-        >
-          {!names.length ? (
-            <p>アルバムを作成すると追加できます。</p>
-          ) : !visible.length ? (
-            <p>該当するアルバムがありません</p>
-          ) : (
-            visible.map((name) => (
-              <div key={name} className="album-editor-row">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={chosen.includes(name)}
-                    disabled={pending.includes(name)}
-                    onChange={(e) => change(name, e.target.checked)}
-                  />
-                  <span>{name}</span>
-                </label>
-                {pending.includes(name) && <p role="status">保存中</p>}
-                {name in failures && (
-                  <div role="alert">
-                    <p>保存・確認できませんでした</p>
-                    <button
-                      type="button"
-                      aria-label={`${name}を再試行`}
-                      onClick={() => change(name, failures[name] === true)}
-                    >
-                      再試行
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-        {refreshError && (
-          <footer className="album-editor-footer">
-            <p role="alert">最新の所属を取得できませんでした</p>
-            <button type="button" onClick={refresh}>
-              最新情報を再取得
-            </button>
-          </footer>
+      <header className="album-editor-header">
+        <h2>アルバムに追加・解除</h2>
+        <button type="button" aria-label="閉じる" onClick={onClose}>
+          <X size={16} />
+        </button>
+      </header>
+      <div className="album-editor-list" role="group" aria-label="所属アルバム">
+        {!names.length ? (
+          <p>アルバムを作成すると追加できます。</p>
+        ) : (
+          ordered.map((name) => (
+            <div key={name} className="album-editor-row">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={chosen.includes(name)}
+                  disabled={pending.includes(name)}
+                  onChange={(e) => change(name, e.target.checked)}
+                />
+                <span>{name}</span>
+              </label>
+              {pending.includes(name) && <p role="status">保存中</p>}
+              {name in failures && (
+                <div role="alert">
+                  <p>保存・確認できませんでした</p>
+                  <button
+                    type="button"
+                    aria-label={`${name}を再試行`}
+                    onClick={() => change(name, failures[name] === true)}
+                  >
+                    再試行
+                  </button>
+                </div>
+              )}
+            </div>
+          ))
         )}
-      </DialogContent>
-    </Dialog>
+      </div>
+      {refreshError && (
+        <footer className="album-editor-footer">
+          <p role="alert">最新の所属を取得できませんでした</p>
+          <button type="button" onClick={refresh}>
+            最新情報を再取得
+          </button>
+        </footer>
+      )}
+    </aside>
   );
 }

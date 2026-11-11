@@ -84,7 +84,9 @@ test('検索、アルバム作成、写真のアルバム変更', async ({ page 
     page.getByRole('checkbox', { name: 'テストの思い出', exact: true }),
   ).toBeEnabled();
   await page.getByRole('button', { name: '閉じる', exact: true }).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(
+    page.getByRole('region', { name: 'アルバムに追加・解除', exact: true }),
+  ).toHaveCount(0);
   await page.getByRole('button', { name: '戻る', exact: true }).click();
   await page.getByRole('link', { name: 'アルバム', exact: true }).click();
   await page.getByRole('button', { name: /テストの思い出/ }).click();
@@ -279,9 +281,11 @@ for (const width of [1280, 393]) {
     await expect(page.getByRole('button', { name: '変更を保存' })).toHaveCount(
       0,
     );
-    await expect(page.getByRole('dialog').getByRole('searchbox')).toHaveCount(
-      0,
-    );
+    await expect(
+      page
+        .getByRole('region', { name: 'アルバムに追加・解除', exact: true })
+        .getByRole('searchbox'),
+    ).toHaveCount(0);
     await page
       .getByRole('checkbox', { name: '空のアルバム', exact: true })
       .click();
@@ -304,7 +308,9 @@ for (const width of [1280, 393]) {
       page.getByRole('checkbox', { name: '海のある休日', exact: true }),
     ).toBeEnabled();
     await page.getByRole('button', { name: '閉じる', exact: true }).click();
-    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(
+      page.getByRole('region', { name: 'アルバムに追加・解除', exact: true }),
+    ).toHaveCount(0);
     await open('error');
     await first.click();
     await expect(page.getByRole('alert')).toContainText(
@@ -335,13 +341,16 @@ for (const width of [1280, 393]) {
     await expect(first).toBeEnabled();
     await expect(first).not.toBeChecked();
     await open('many-albums');
-    const dialog = page.getByRole('dialog');
+    const dialog = page.getByRole('region', {
+      name: 'アルバムに追加・解除',
+      exact: true,
+    });
     await page.screenshot({ path: '../../work/album-panel-' + width + '.png' });
     const box = await dialog.boundingBox();
     expect(
       box && box.y >= 0 && box.y + box.height <= 853 && box.height < 600,
     ).toBeTruthy();
-    if (width === 393) expect(box && Math.round(box.y + box.height)).toBe(852);
+
     expect(
       await page
         .getByRole('group', { name: '所属アルバム' })
@@ -356,8 +365,10 @@ for (const width of [1280, 393]) {
     expect(
       await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth),
     ).toBe(true);
-    await page.getByRole('button', { name: '所属中', exact: true }).click();
-    await expect(page.getByRole('checkbox')).toHaveCount(8);
+    await expect(page.getByRole('checkbox')).toHaveCount(121);
+    await expect(
+      page.getByRole('button', { name: '所属中', exact: true }),
+    ).toHaveCount(0);
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(
@@ -402,7 +413,10 @@ for (const [width, height] of [
         toolbar && toolbar.x >= 0 && toolbar.x + toolbar.width <= width,
       ).toBeTruthy();
       await trigger.tap();
-      const panel = page.getByRole('dialog'),
+      const panel = page.getByRole('region', {
+          name: 'アルバムに追加・解除',
+          exact: true,
+        }),
         list = page.getByRole('group', { name: '所属アルバム' });
       await expect(panel.getByRole('searchbox')).toHaveCount(0);
       const bounds = await panel.boundingBox();
@@ -446,3 +460,54 @@ for (const [width, height] of [
     await context.close();
   });
 }
+
+test('iPhoneプレビュー内で写真情報と同じ位置に全アルバムを表示', async ({
+  page,
+}) => {
+  await page.goto(
+    '/iframe.html?id=' +
+      encodeURIComponent('スマートフォン-iphone-16--playground') +
+      '&viewMode=story',
+  );
+  const frame = page.frameLocator('iframe[title="iPhone 16の写真アプリ"]');
+  await frame
+    .getByRole('button', { name: '湖畔の朝を開く', exact: true })
+    .click();
+  await frame.getByRole('button', { name: '写真の情報', exact: true }).click();
+  const info = await frame.locator('.info-panel').boundingBox();
+  await frame
+    .getByRole('button', { name: 'アルバムに追加・解除', exact: true })
+    .click();
+  const panel = frame.getByRole('region', {
+    name: 'アルバムに追加・解除',
+    exact: true,
+  });
+  const bounds = await panel.boundingBox();
+  expect(
+    info &&
+      bounds &&
+      Math.abs(info.x - bounds.x) <= 1 &&
+      Math.abs(info.width - bounds.width) <= 1 &&
+      Math.abs(info.y - bounds.y) <= 3,
+  ).toBeTruthy();
+  await expect(frame.getByRole('dialog')).toHaveCount(0);
+  await expect(
+    frame.getByRole('button', { name: '所属中', exact: true }),
+  ).toHaveCount(0);
+  await expect(panel.getByRole('checkbox')).toHaveCount(3);
+  await panel
+    .getByRole('checkbox', { name: '海のある休日', exact: true })
+    .click();
+  await expect(
+    panel.getByRole('checkbox', { name: '海のある休日', exact: true }),
+  ).toBeEnabled();
+  await expect(
+    panel.getByRole('checkbox', { name: '海のある休日', exact: true }),
+  ).toBeChecked();
+  await page.screenshot({ path: '../../work/iphone-inline-album-panel.png' });
+  await frame.getByRole('button', { name: '写真の情報', exact: true }).click();
+  await expect(panel).toHaveCount(0);
+  await expect(
+    frame.getByRole('heading', { name: '写真の情報', exact: true }),
+  ).toBeVisible();
+});
