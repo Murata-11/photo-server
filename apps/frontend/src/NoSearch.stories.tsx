@@ -5,6 +5,7 @@ import { resetStore } from './mocks/scenarios';
 const meta = {
   title: 'Issue 23/検索バーのない画面',
   component: App,
+  args: { designPreview: false },
   parameters: { layout: 'fullscreen' },
   beforeEach: () => resetStore(),
 } satisfies Meta<typeof App>;

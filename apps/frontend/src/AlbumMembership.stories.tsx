@@ -5,7 +5,7 @@ const meta = {
   title: 'Issue 21/複数アルバム',
   component: App,
   parameters: { layout: 'fullscreen' },
-  args: { initialPath: '/photo/1' },
+  args: { designPreview: false, initialPath: '/photo/1' },
   beforeEach: () => membershipFixture('normal'),
 } satisfies Meta<typeof App>;
 export default meta;

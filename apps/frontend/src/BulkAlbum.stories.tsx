@@ -4,6 +4,7 @@ import { bulkFixture } from './mocks/scenarios';
 const meta = {
   title: 'Issue 22/写真の一括アルバム追加',
   component: App,
+  args: { designPreview: false },
   parameters: { layout: 'fullscreen' },
   beforeEach: () => bulkFixture(),
 } satisfies Meta<typeof App>;

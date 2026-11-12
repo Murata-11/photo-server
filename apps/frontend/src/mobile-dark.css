@@ -1,4 +1,4 @@
-/* Opt-in review proposal: the production entry point keeps the existing UI. */
+/* Shared default layout for the application and its Storybook contract. */
 .mobile-dark {
   color-scheme: dark;
   color: #f2f2f4;
@@ -535,4 +535,37 @@ body:has(.mobile-dark.photo-detail-mode) {
 
 .mobile-dark .album-gallery-heading ~ .continuous-photo-grid {
   margin-top: 0;
+}
+
+.mobile-dark .account-menu-container {
+  position: relative;
+}
+.mobile-dark .account-navigation {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 12px);
+  z-index: 80;
+  min-width: 180px;
+  padding: 12px;
+  border: 1px solid #ffffff26;
+  border-radius: 18px;
+  background: #252527;
+  box-shadow: 0 12px 32px #0008;
+}
+.mobile-dark .account-navigation p {
+  margin: 4px 10px 10px;
+  color: #b6b6bd;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.mobile-dark .account-navigation a {
+  display: block;
+  padding: 12px 10px;
+  border-radius: 10px;
+  color: #f5f5f7;
+  text-decoration: none;
+}
+.mobile-dark .account-navigation a:hover,
+.mobile-dark .account-navigation a:focus-visible {
+  background: #ffffff14;
 }

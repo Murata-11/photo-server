@@ -5,7 +5,7 @@ const meta = {
   title: 'Issue 20/48MPアップロード',
   component: App,
   parameters: { layout: 'fullscreen' },
-  args: { initialUploadOpen: true },
+  args: { designPreview: false, initialUploadOpen: true },
   beforeEach: () => uploadFixture(),
 } satisfies Meta<typeof App>;
 export default meta;

@@ -14,7 +14,11 @@ async function expectNoSearchLayout(page: Page) {
     .evaluate(
       (element) => element.getBoundingClientRect().top + window.scrollY,
     );
-  expect(header?.height).toBe(72);
+  expect(header?.height).toBe(
+    (page.viewportSize()?.width ?? 0) <= 760 ? 84 : 72,
+  );
+  await expect(page.locator('.app-shell')).toHaveClass(/mobile-dark/);
+  await expect(page.locator('#library-menu')).toHaveCount(0);
   expect(contentTop).toBeGreaterThanOrEqual(72);
   expect(
     await page.evaluate(
@@ -32,8 +36,7 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
   await expectNoSearchLayout(page);
   await page
     .getByRole('button', {
-      name:
-        info.project.name === 'iphone16' ? '写真をアップロード' : '写真を追加',
+      name: '写真をアップロード',
       exact: true,
     })
     .first()
@@ -51,6 +54,30 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
   await page.reload();
   await expectNoSearchLayout(page);
   await expect(tile).toBeVisible();
+  await expect(page.locator('.photo-select')).toHaveCount(0);
+  if (info.project.name === 'iphone16') {
+    const box = await tile.boundingBox();
+    if (!box) throw new Error('Missing photo');
+    const touch = await page.context().newCDPSession(page);
+    await touch.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }],
+    });
+    await expect(
+      page.getByRole('status', { name: '1枚を選択中' }),
+    ).toBeVisible();
+    await touch.send('Input.dispatchTouchEvent', {
+      type: 'touchEnd',
+      touchPoints: [],
+    });
+    await touch.detach();
+  } else {
+    await tile.press('Shift+Enter');
+    await expect(
+      page.getByRole('status', { name: '1枚を選択中' }),
+    ).toBeVisible();
+  }
+  await page.getByRole('button', { name: '選択解除' }).click();
   await tile.click();
   await expectNoSearchLayout(page);
   await page
@@ -150,9 +177,9 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
   await page.getByRole('button', { name: '写真を削除', exact: true }).click();
   await page.getByRole('button', { name: 'ゴミ箱に移動', exact: true }).click();
   await expect(tile).toHaveCount(0);
-  // Mobile trash is behind its menu.
-  if (info.project.name === 'iphone16')
-    await page.getByRole('button', { name: 'メニュー', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'アカウントメニュー', exact: true })
+    .click();
   await page.getByRole('link', { name: 'ゴミ箱', exact: true }).click();
   await expectNoSearchLayout(page);
   await tile.click();
