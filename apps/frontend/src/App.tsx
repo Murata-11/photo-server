@@ -1,7 +1,17 @@
+import { SwipePhotoStage } from './SwipePhotoStage';
+import { SelectablePhotoTile } from './SelectablePhotoTile';
+import { ContinuousPhotoGrid } from './ContinuousPhotoGrid';
 import { BulkTrashDialog } from './BulkTrashDialog';
+import './mobile-dark.css';
 import { BulkAlbumDialog } from './BulkAlbumDialog';
 import { AlbumEditor } from './AlbumEditor';
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from 'react';
 import {
   MemoryRouter,
   NavLink,
@@ -55,17 +65,47 @@ const navigation = [
 export function App({
   initialPath = '/',
   initialUploadOpen = false,
+  designPreview = false,
 }: {
   initialPath?: string;
   initialUploadOpen?: boolean;
+  designPreview?: boolean;
 }) {
   return (
     <MemoryRouter initialEntries={[initialPath]}>
-      <PhotoApp initialUploadOpen={initialUploadOpen} />
+      <PhotoApp
+        initialUploadOpen={initialUploadOpen}
+        designPreview={designPreview}
+      />
     </MemoryRouter>
   );
 }
-function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
+// A stable route component preserves the photo DOM when selection state changes.
+function GalleryRoute({ render }: { render: (album?: string) => ReactNode }) {
+  const { name } = useParams();
+  return render(name);
+}
+function PhotoDetailRoute({
+  render,
+  onKeyDown,
+}: {
+  render: (id?: string) => ReactNode;
+  onKeyDown: (event: KeyboardEvent) => void;
+}) {
+  const { id } = useParams();
+  useEffect(() => {
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onKeyDown]);
+  return render(id);
+}
+function PhotoApp({
+  initialUploadOpen,
+  designPreview,
+}: {
+  initialUploadOpen: boolean;
+  designPreview: boolean;
+}) {
   const acceptedTypes = ['image/jpeg', 'image/png', 'image/webp'];
   const formatMessage = 'JPEG・PNG・WebPの静止画像を選んでください';
   const [photos, setPhotos] = useState<Photo[]>([]),
@@ -79,6 +119,7 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
     [albumName, setAlbumName] = useState(''),
     [newAlbums, setNewAlbums] = useState<string[]>([]),
     [selected, setSelected] = useState<string[]>([]),
+    [selectionMode, setSelectionMode] = useState(false),
     [bulkAlbumOpen, setBulkAlbumOpen] = useState(false),
     [bulkTrashOpen, setBulkTrashOpen] = useState(false),
     [mobileMenu, setMobileMenu] = useState(false),
@@ -90,6 +131,57 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
   const navigate = useNavigate(),
     location = useLocation(),
     fileInput = useRef<HTMLInputElement>(null);
+  const ignoredPhotoClick = useRef<string | null>(null);
+  const detailArrows = useRef(false);
+  function photoOrigin(deleted = false) {
+    const origin = (location.state as { photoOrigin?: unknown } | null)
+      ?.photoOrigin;
+    return typeof origin === 'string' &&
+      (['/', '/favorites', '/trash', '/albums'].includes(origin) ||
+        origin.startsWith('/album/'))
+      ? origin
+      : deleted
+        ? '/trash'
+        : '/';
+  }
+  function openPhoto(id: string | undefined) {
+    if (!id) return;
+    const inViewer = location.pathname.startsWith('/photo/');
+    const origin = inViewer
+      ? photoOrigin(photos.find((photo) => photo.id === id)?.deleted)
+      : location.pathname;
+    navigate('/photo/' + id, {
+      state: { photoOrigin: origin },
+      replace: inViewer,
+    });
+  }
+
+  function endSelection() {
+    setSelected([]);
+    setSelectionMode(false);
+    ignoredPhotoClick.current = null;
+  }
+  function selectPhoto(id: string) {
+    if (ignoredPhotoClick.current === id) {
+      ignoredPhotoClick.current = null;
+      return;
+    }
+    setSelected((previous) =>
+      previous.includes(id)
+        ? previous.filter((value) => value !== id)
+        : [...previous, id],
+    );
+  }
+  async function favoriteSelected() {
+    const failed: string[] = [];
+    for (const photo of photos.filter((photo) => selected.includes(photo.id)))
+      if (!(await update(photo, { favorite: true }))) failed.push(photo.id);
+    setSelected(failed);
+    if (!failed.length) {
+      setSelectionMode(false);
+      toast.success('お気に入りに追加しました');
+    }
+  }
   async function load() {
     setLoading(true);
     setError('');
@@ -112,7 +204,8 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
     load();
   }, []);
   useEffect(() => {
-    setSelected([]);
+    endSelection();
+    if (!location.pathname.startsWith('/photo/')) detailArrows.current = false;
     setMobileMenu(false);
     setFilter('すべて');
     setShowInfo(false);
@@ -180,7 +273,7 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
       : isAlbums
         ? 'アルバム'
         : 'フォト';
-  function Gallery({ album }: { album?: string }) {
+  function renderGallery(album?: string) {
     const base = photos.filter((p) =>
       isTrash
         ? p.deleted
@@ -190,42 +283,115 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
     );
     const visible = base.filter((p) => filter !== 'お気に入り' || p.favorite);
     const dates = [...new Set(visible.map((p) => p.date))].sort().reverse();
+    const continuousPhotos = designPreview && !isTrash && !isFavorite;
+    const minimalPhotos = continuousPhotos && !album;
+    const renderPhoto = (photo: Photo) =>
+      designPreview ? (
+        <SelectablePhotoTile
+          key={photo.id}
+          photo={photo}
+          selected={selected.includes(photo.id)}
+          selecting={selectionMode}
+          onPointerStart={() => {
+            ignoredPhotoClick.current = null;
+          }}
+          onLongPress={() => {
+            ignoredPhotoClick.current = photo.id;
+            setSelectionMode(true);
+            setSelected([photo.id]);
+          }}
+          onKeyboardSelect={() => {
+            ignoredPhotoClick.current = null;
+            setSelectionMode(true);
+            setSelected((previous) =>
+              previous.includes(photo.id) ? previous : [...previous, photo.id],
+            );
+          }}
+          onToggle={() => selectPhoto(photo.id)}
+          onOpen={() => {
+            if (ignoredPhotoClick.current === photo.id) {
+              ignoredPhotoClick.current = null;
+              return;
+            }
+            openPhoto(photo.id);
+          }}
+        />
+      ) : (
+        <div
+          key={photo.id}
+          data-uploaded-at={photo.createdAt}
+          className={`photo-tile ${selected.includes(photo.id) ? 'selected' : ''}`}
+        >
+          <button
+            className="photo-open"
+            onClick={() => openPhoto(photo.id)}
+            aria-label={`${photo.name}を開く`}
+          >
+            <img loading="lazy" src={photo.src} alt={photo.name} />
+            <span className="tile-shade" />
+            <span className="tile-name">{photo.name}</span>
+          </button>
+          <button
+            className="photo-select"
+            aria-label={`${photo.name}を選択`}
+            aria-pressed={selected.includes(photo.id)}
+            onClick={() =>
+              setSelected((prev) =>
+                prev.includes(photo.id)
+                  ? prev.filter((id) => id !== photo.id)
+                  : [...prev, photo.id],
+              )
+            }
+          >
+            <Check size={14} />
+          </button>
+          {photo.favorite && (
+            <Heart className="tile-heart" size={17} fill="white" />
+          )}
+        </div>
+      );
     return (
       <>
-        <div className="page-heading">
-          <div>
-            <div className="eyebrow">YOUR SHARED LIBRARY</div>
-            <h1>
-              {album || title}
-              {isFavorite && <Heart className="heading-heart" size={23} />}
-            </h1>
-            <p>
-              {isTrash
-                ? '削除した写真を確認・復元できます'
-                : isFavorite
-                  ? '何度でも見返したい、大切な一枚。'
-                  : album
-                    ? 'ふたりで集めた、とっておきの瞬間。'
-                    : '何気ない毎日も、とっておきの思い出に。'}
-            </p>
+        {!minimalPhotos && (
+          <div
+            className={`page-heading${continuousPhotos ? ' album-gallery-heading' : ''}`}
+          >
+            <div>
+              <div className="eyebrow">YOUR SHARED LIBRARY</div>
+              <h1>
+                {album || title}
+                {isFavorite && <Heart className="heading-heart" size={23} />}
+              </h1>
+              <p>
+                {isTrash
+                  ? '削除した写真を確認・復元できます'
+                  : isFavorite
+                    ? '何度でも見返したい、大切な一枚。'
+                    : album
+                      ? 'ふたりで集めた、とっておきの瞬間。'
+                      : '何気ない毎日も、とっておきの思い出に。'}
+              </p>
+            </div>
+            {!continuousPhotos && (
+              <div className="heading-tools">
+                <span className="photo-count">{base.length}枚の写真</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={compact ? '写真を大きく表示' : '写真を小さく表示'}
+                  onClick={() => setCompact(!compact)}
+                >
+                  {compact ? <Grid2X2 size={20} /> : <LayoutGrid size={20} />}
+                </Button>
+              </div>
+            )}
           </div>
-          <div className="heading-tools">
-            <span className="photo-count">{base.length}枚の写真</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={compact ? '写真を大きく表示' : '写真を小さく表示'}
-              onClick={() => setCompact(!compact)}
-            >
-              {compact ? <Grid2X2 size={20} /> : <LayoutGrid size={20} />}
-            </Button>
-          </div>
-        </div>
+        )}
         {!isTrash && !isFavorite && !album && active.length > 0 && (
           <div className="memories">
             <button
               className="memory memory-wide"
-              onClick={() => navigate('/photo/' + active[0]?.id)}
+              onClick={() => openPhoto(active[0]?.id)}
             >
               <img src={active[0]?.src} alt={active[0]?.name} />
               <div className="memory-shade" />
@@ -271,30 +437,32 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
             </button>
           </div>
         )}
-        <div className="gallery-toolbar">
-          <div className="chip-group">
-            <button
-              className={filter === 'すべて' ? 'chip active' : 'chip'}
-              onClick={() => setFilter('すべて')}
-            >
-              すべての写真
-            </button>
-            {!isTrash && !isFavorite && (
+        {!continuousPhotos && (
+          <div className="gallery-toolbar">
+            <div className="chip-group">
               <button
-                className={filter === 'お気に入り' ? 'chip active' : 'chip'}
-                onClick={() => setFilter('お気に入り')}
+                className={filter === 'すべて' ? 'chip active' : 'chip'}
+                onClick={() => setFilter('すべて')}
               >
-                <Heart size={14} />
-                お気に入り
+                すべての写真
               </button>
-            )}
+              {!isTrash && !isFavorite && (
+                <button
+                  className={filter === 'お気に入り' ? 'chip active' : 'chip'}
+                  onClick={() => setFilter('お気に入り')}
+                >
+                  <Heart size={14} />
+                  お気に入り
+                </button>
+              )}
+            </div>
+            <span className="sort-label">
+              <ArrowUp size={14} />
+              追加日の新しい順（UTC）
+            </span>
           </div>
-          <span className="sort-label">
-            <ArrowUp size={14} />
-            追加日の新しい順（UTC）
-          </span>
-        </div>
-        {selected.length > 0 && (
+        )}
+        {selected.length > 0 && !designPreview && (
           <div className="selection-bar">
             {!isTrash && (
               <Button
@@ -330,18 +498,7 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
                   アルバムに追加
                 </Button>
               )}
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={async () => {
-                  const failed: string[] = [];
-                  for (const p of photos.filter((p) => selected.includes(p.id)))
-                    if (!(await update(p, { favorite: true })))
-                      failed.push(p.id);
-                  setSelected(failed);
-                  if (!failed.length) toast.success('お気に入りに追加しました');
-                }}
-              >
+              <Button variant="secondary" size="sm" onClick={favoriteSelected}>
                 <Heart size={16} />
                 お気に入りに追加
               </Button>
@@ -372,6 +529,12 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
               </Button>
             )}
           </div>
+        ) : continuousPhotos ? (
+          <ContinuousPhotoGrid>
+            {[...visible]
+              .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+              .map(renderPhoto)}
+          </ContinuousPhotoGrid>
         ) : (
           dates.map((date) => (
             <section className="date-section" key={date}>
@@ -389,41 +552,7 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
                 <span>{visible.filter((p) => p.date === date).length}枚</span>
               </div>
               <div className={`photo-grid ${compact ? 'compact' : ''}`}>
-                {visible
-                  .filter((p) => p.date === date)
-                  .map((photo) => (
-                    <div
-                      key={photo.id}
-                      className={`photo-tile ${selected.includes(photo.id) ? 'selected' : ''}`}
-                    >
-                      <button
-                        className="photo-open"
-                        onClick={() => navigate('/photo/' + photo.id)}
-                        aria-label={`${photo.name}を開く`}
-                      >
-                        <img loading="lazy" src={photo.src} alt={photo.name} />
-                        <span className="tile-shade" />
-                        <span className="tile-name">{photo.name}</span>
-                      </button>
-                      <button
-                        className="photo-select"
-                        aria-label={`${photo.name}を選択`}
-                        aria-pressed={selected.includes(photo.id)}
-                        onClick={() =>
-                          setSelected((prev) =>
-                            prev.includes(photo.id)
-                              ? prev.filter((id) => id !== photo.id)
-                              : [...prev, photo.id],
-                          )
-                        }
-                      >
-                        <Check size={14} />
-                      </button>
-                      {photo.favorite && (
-                        <Heart className="tile-heart" size={17} fill="white" />
-                      )}
-                    </div>
-                  ))}
+                {visible.filter((p) => p.date === date).map(renderPhoto)}
               </div>
             </section>
           ))
@@ -437,24 +566,22 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
       </>
     );
   }
-  function Detail() {
-    const { id } = useParams();
+  function onPhotoKeyDown(event: KeyboardEvent) {
+    if (albumEditorOpen || event.defaultPrevented) return;
+    const id = location.pathname.slice('/photo/'.length);
+    const photo = photos.find((value) => value.id === id);
+    const siblings = photos.filter((value) => value.deleted === photo?.deleted);
+    const index = siblings.findIndex((value) => value.id === id);
+    if (event.key === 'Escape') navigate(photoOrigin(photo?.deleted));
+    if (event.key === 'ArrowRight') openPhoto(siblings[index + 1]?.id);
+    if (event.key === 'ArrowLeft') openPhoto(siblings[index - 1]?.id);
+  }
+  function renderDetail(id?: string) {
     const photo = photos.find((p) => p.id === id);
     const siblings = photos.filter((p) => p.deleted === photo?.deleted);
     const index = siblings.findIndex((p) => p.id === id);
     const previous = siblings[index - 1];
     const next = siblings[index + 1];
-    useEffect(() => {
-      function key(e: KeyboardEvent) {
-        if (albumEditorOpen || e.defaultPrevented) return;
-        if (e.key === 'Escape') navigate(photo?.deleted ? '/trash' : '/');
-        if (e.key === 'ArrowRight' && next) navigate('/photo/' + next.id);
-        if (e.key === 'ArrowLeft' && previous)
-          navigate('/photo/' + previous.id);
-      }
-      window.addEventListener('keydown', key);
-      return () => window.removeEventListener('keydown', key);
-    }, [id, index]);
     if (loading)
       return (
         <div className="empty-state">
@@ -473,7 +600,7 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
         <div className="detail-toolbar">
           <Button
             variant="ghost"
-            onClick={() => navigate(photo.deleted ? '/trash' : '/')}
+            onClick={() => navigate(photoOrigin(photo.deleted))}
           >
             <ArrowLeft size={20} />
             戻る
@@ -556,35 +683,50 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
             )}
           </div>
         </div>
-        <div className="detail-stage">
-          <Button
-            className="previous-photo"
-            variant="outline"
-            size="icon"
-            aria-label="前の写真"
-            disabled={index === 0}
-            onClick={() => previous && navigate('/photo/' + previous.id)}
-          >
-            <ArrowLeft size={20} />
-          </Button>
-          <img className="detail-image" src={photo.src} alt={photo.name} />
-          <Button
-            className="next-photo"
-            variant="outline"
-            size="icon"
-            aria-label="次の写真"
-            disabled={index === siblings.length - 1}
-            onClick={() => next && navigate('/photo/' + next.id)}
-          >
-            <ArrowRight size={20} />
-          </Button>
-        </div>
-        <div className="detail-caption">
-          <h1>{photo.name}</h1>
-          <p>
-            {photo.date.replaceAll('-', ' / ')} ・ {photo.location}
-          </p>
-        </div>
+        {designPreview ? (
+          <SwipePhotoStage
+            src={photo.src}
+            name={photo.name}
+            initialArrowsVisible={detailArrows.current}
+            onArrowsChange={(visible) => {
+              detailArrows.current = visible;
+            }}
+            onPrevious={previous ? () => openPhoto(previous.id) : undefined}
+            onNext={next ? () => openPhoto(next.id) : undefined}
+          />
+        ) : (
+          <div className="detail-stage">
+            <Button
+              className="previous-photo"
+              variant="outline"
+              size="icon"
+              aria-label="前の写真"
+              disabled={index === 0}
+              onClick={() => previous && openPhoto(previous.id)}
+            >
+              <ArrowLeft size={20} />
+            </Button>
+            <img className="detail-image" src={photo.src} alt={photo.name} />
+            <Button
+              className="next-photo"
+              variant="outline"
+              size="icon"
+              aria-label="次の写真"
+              disabled={index === siblings.length - 1}
+              onClick={() => next && openPhoto(next.id)}
+            >
+              <ArrowRight size={20} />
+            </Button>
+          </div>
+        )}
+        {!designPreview && (
+          <div className="detail-caption">
+            <h1>{photo.name}</h1>
+            <p>
+              {photo.date.replaceAll('-', ' / ')} ・ {photo.location}
+            </p>
+          </div>
+        )}
         {showInfo && (
           <aside className="info-panel">
             <h2>写真の情報</h2>
@@ -613,31 +755,44 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
       </div>
     );
   }
-  function Album() {
-    const { name } = useParams();
+  function renderAlbum(name?: string) {
     return (
       <>
         <button className="back-link" onClick={() => navigate('/albums')}>
           <ArrowLeft size={16} />
           アルバムに戻る
         </button>
-        <Gallery album={name} />
+        {renderGallery(name)}
       </>
     );
   }
   return (
-    <div className="app-shell">
+    <div
+      className={`app-shell${designPreview ? ' mobile-dark' : ''}${designPreview && selectionMode ? ' photo-selection-mode' : ''}${designPreview && location.pathname.startsWith('/photo/') ? ' photo-detail-mode' : ''}`}
+    >
       <Toaster position="bottom-center" richColors />
       <header className="topbar">
-        <button
-          className="mobile-toggle"
-          aria-label="メニュー"
-          aria-expanded={mobileMenu}
-          aria-controls="library-menu"
-          onClick={() => setMobileMenu(!mobileMenu)}
-        >
-          <Menu />
-        </button>
+        {designPreview && selectionMode && (
+          <div className="selection-count">
+            <button aria-label="選択解除" onClick={endSelection}>
+              <X size={21} />
+            </button>
+            <span role="status" aria-label={`${selected.length}枚を選択中`}>
+              {selected.length}
+            </span>
+          </div>
+        )}
+        {!designPreview && (
+          <button
+            className="mobile-toggle"
+            aria-label="メニュー"
+            aria-expanded={mobileMenu}
+            aria-controls="library-menu"
+            onClick={() => setMobileMenu(!mobileMenu)}
+          >
+            <Menu />
+          </button>
+        )}
         <NavLink to="/" className="brand">
           <span className="brand-icon">
             <span />
@@ -677,70 +832,82 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
           </button>
         </div>
       </header>
-      {mobileMenu && (
+      {!designPreview && mobileMenu && (
         <button
           className="mobile-menu-backdrop"
           aria-label="メニューを閉じる"
           onClick={() => setMobileMenu(false)}
         />
       )}
-      <aside
-        id="library-menu"
-        className={`sidebar ${mobileMenu ? 'mobile-open' : ''}`}
-      >
-        <Button className="upload-button" onClick={() => setUpload(true)}>
-          <Plus size={22} />
-          写真を追加
-        </Button>
-        <nav>
-          {navigation.map(({ to, label, icon: Icon }) => (
+      {!designPreview && (
+        <aside
+          id="library-menu"
+          className={`sidebar ${mobileMenu ? 'mobile-open' : ''}`}
+        >
+          <Button className="upload-button" onClick={() => setUpload(true)}>
+            <Plus size={22} />
+            写真を追加
+          </Button>
+          <nav>
+            {navigation.map(({ to, label, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end
+                className={({ isActive }) =>
+                  `nav-link ${isActive ? 'active' : ''}`
+                }
+              >
+                <Icon size={21} />
+                <span>{label}</span>
+                {to === '/' && (
+                  <span className="nav-count">{active.length}</span>
+                )}
+              </NavLink>
+            ))}
+            <div className="nav-separator" />
             <NavLink
-              key={to}
-              to={to}
-              end
+              to="/trash"
               className={({ isActive }) =>
                 `nav-link ${isActive ? 'active' : ''}`
               }
             >
-              <Icon size={21} />
-              <span>{label}</span>
-              {to === '/' && <span className="nav-count">{active.length}</span>}
+              <Trash2 size={21} />
+              <span>ゴミ箱</span>
             </NavLink>
-          ))}
-          <div className="nav-separator" />
-          <NavLink
-            to="/trash"
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-          >
-            <Trash2 size={21} />
-            <span>ゴミ箱</span>
-          </NavLink>
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="space-card">
-            <div className="space-icon">
-              <Cloud size={21} />
+          </nav>
+          <div className="sidebar-bottom">
+            <div className="space-card">
+              <div className="space-icon">
+                <Cloud size={21} />
+              </div>
+              <div>
+                <strong>ふたりのライブラリ</strong>
+                <span>思い出を、一緒に。</span>
+              </div>
+              <div className="small-avatars">
+                <span>H</span>
+                <span>M</span>
+              </div>
             </div>
-            <div>
-              <strong>ふたりのライブラリ</strong>
-              <span>思い出を、一緒に。</span>
-            </div>
-            <div className="small-avatars">
-              <span>H</span>
-              <span>M</span>
+            <div className="prototype-note">
+              <span />
+              デザインプレビュー
             </div>
           </div>
-          <div className="prototype-note">
-            <span />
-            デザインプレビュー
-          </div>
-        </div>
-      </aside>
+        </aside>
+      )}
       <main className="main-content">
         <Routes>
-          <Route path="/" element={<Gallery />} />
-          <Route path="/favorites" element={<Gallery />} />
-          <Route path="/trash" element={<Gallery />} />
+          <Route path="/" element={<GalleryRoute render={renderGallery} />} />
+          <Route
+            path="/favorites"
+            element={<GalleryRoute render={renderGallery} />}
+          />
+          <Route
+            path="/trash"
+            element={<GalleryRoute render={renderGallery} />}
+          />
           <Route
             path="/albums"
             element={
@@ -799,13 +966,27 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
               </>
             }
           />
-          <Route path="/album/:name" element={<Album />} />
-          <Route path="/photo/:id" element={<Detail />} />
+          <Route
+            path="/album/:name"
+            element={<GalleryRoute render={renderAlbum} />}
+          />
+          <Route
+            path="/photo/:id"
+            element={
+              <PhotoDetailRoute
+                render={renderDetail}
+                onKeyDown={onPhotoKeyDown}
+              />
+            }
+          />
         </Routes>
       </main>
-      {!mobileMenu && (
+      {!mobileMenu && !(designPreview && selectionMode) && (
         <nav className="mobile-bottom-nav" aria-label="メインナビゲーション">
-          {navigation.map(({ to, label, icon: Icon }) => (
+          {(designPreview
+            ? navigation.filter(({ to }) => to !== '/favorites')
+            : navigation
+          ).map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -820,7 +1001,43 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
               <span>{label}</span>
             </NavLink>
           ))}
+          {designPreview && (
+            <button
+              className="mobile-nav-link"
+              onClick={() => setAlbumModal(true)}
+            >
+              <span className="mobile-nav-icon">
+                <Plus size={22} />
+              </span>
+              <span>作成</span>
+            </button>
+          )}
         </nav>
+      )}
+      {designPreview && selectionMode && (
+        <section className="selection-panel" aria-label="選択した写真の操作">
+          <span className="selection-panel-handle" aria-hidden="true" />
+          <div className="selection-panel-actions">
+            <button
+              disabled={!selected.length || isTrash}
+              onClick={() => setBulkAlbumOpen(true)}
+            >
+              <FolderHeart size={24} />
+              <span>アルバムに追加</span>
+            </button>
+            <button disabled={!selected.length} onClick={favoriteSelected}>
+              <Heart size={24} />
+              <span>お気に入り</span>
+            </button>
+            <button
+              disabled={!selected.length || isTrash}
+              onClick={() => setBulkTrashOpen(true)}
+            >
+              <Trash2 size={24} />
+              <span>ゴミ箱に移動</span>
+            </button>
+          </div>
+        </section>
       )}
       <BulkTrashDialog
         open={bulkTrashOpen}
@@ -832,7 +1049,7 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
             : undefined
         }
         onSaved={(ids) => {
-          setSelected([]);
+          endSelection();
           setPhotos((previous) =>
             previous.map((photo) =>
               ids.includes(photo.id) ? { ...photo, deleted: true } : photo,
@@ -853,7 +1070,7 @@ function PhotoApp({ initialUploadOpen }: { initialUploadOpen: boolean }) {
         onOpenChange={setBulkAlbumOpen}
         photoIds={selected}
         albums={newAlbums}
-        onSaved={() => setSelected([])}
+        onSaved={endSelection}
         onReload={async () => {
           const [nextPhotos, nextAlbums] = await Promise.all([
             api.list(),

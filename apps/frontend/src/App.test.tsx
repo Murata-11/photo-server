@@ -20,6 +20,7 @@ vi.mock('./lib/api', () => ({
     createAlbum: vi.fn(),
     update: vi.fn(),
     addAlbum: vi.fn(),
+    addPhotosAlbum: vi.fn(),
     removeAlbum: vi.fn(),
     trashPhotos: vi.fn(),
   },
@@ -224,4 +225,117 @@ it('一括移動で対象だけを除き再取得失敗から更新のみ再試�
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   expect(api.trashPhotos).toHaveBeenCalledTimes(1);
   expect(api.trashPhotos).toHaveBeenCalledWith({ photoIds: ['1', '2'] });
+});
+
+it('ダークUIはキーボードから複数選択し、0枚・終了・お気に入り保存を扱う', async () => {
+  const user = userEvent.setup();
+  render(<App designPreview />);
+  const first = await screen.findByRole('button', { name: '湖畔の朝を開く' });
+  expect(document.querySelector('.photo-select')).toBeNull();
+  first.focus();
+  await user.keyboard('{Shift>}{Enter}{/Shift}');
+  expect(screen.getByRole('status', { name: '1枚を選択中' })).toBeTruthy();
+  await user.click(button('山へ続く道を選択'));
+  expect(screen.getByRole('status', { name: '2枚を選択中' })).toBeTruthy();
+  await user.click(button('湖畔の朝を選択'));
+  await user.click(button('山へ続く道を選択'));
+  expect(screen.getByRole('status', { name: '0枚を選択中' })).toBeTruthy();
+  expect(button('お気に入り').hasAttribute('disabled')).toBe(true);
+  await user.click(button('山へ続く道を選択'));
+  await user.click(button('お気に入り'));
+  await waitFor(() =>
+    expect(document.querySelector('.selection-panel')).toBeNull(),
+  );
+  expect(api.update).toHaveBeenCalledWith('2', { favorite: true });
+  await user.click(button('山へ続く道を開く'));
+  expect(await screen.findByRole('img', { name: '山へ続く道' })).toBeTruthy();
+});
+it('ダークUIで選択を解除し、選択した写真を既存アルバムへ追加する', async () => {
+  const user = userEvent.setup();
+  vi.mocked(api.addPhotosAlbum).mockResolvedValue(undefined);
+  render(<App designPreview />);
+  const first = await screen.findByRole('button', { name: '湖畔の朝を開く' });
+  first.focus();
+  await user.keyboard('{Shift>}{Enter}{/Shift}');
+  await user.click(button('選択解除'));
+  expect(document.querySelector('.photo-select')).toBeNull();
+  button('湖畔の朝を開く').focus();
+  await user.keyboard('{Shift>}{Enter}{/Shift}');
+  await user.click(button('アルバムに追加'));
+  await user.selectOptions(
+    screen.getByRole('combobox', { name: '追加先' }),
+    '空のアルバム',
+  );
+  await user.click(button('追加'));
+  await waitFor(() =>
+    expect(document.querySelector('.selection-panel')).toBeNull(),
+  );
+});
+
+it.each(['/', '/album/秋の小旅行'])(
+  '選択中も写真DOMを維持し、一覧を再取得しない: %s',
+  async (path) => {
+    const user = userEvent.setup();
+    render(<App designPreview initialPath={path} />);
+    const first = await screen.findByRole('button', { name: '湖畔の朝を開く' });
+    const original = Array.from(document.querySelectorAll('.photo-open img'));
+    const calls = vi.mocked(api.list).mock.calls.length;
+    first.focus();
+    await user.keyboard('{Shift>}{Enter}{/Shift}');
+    await user.click(button('山へ続く道を選択'));
+    expect(screen.getByRole('status', { name: '2枚を選択中' })).toBeTruthy();
+    const selected = Array.from(document.querySelectorAll('.photo-open img'));
+    expect(selected).toHaveLength(original.length);
+    original.forEach((image, index) => expect(selected[index]).toBe(image));
+    await user.click(button('選択解除'));
+    const after = Array.from(document.querySelectorAll('.photo-open img'));
+    original.forEach((image, index) => expect(after[index]).toBe(image));
+    expect(api.list).toHaveBeenCalledTimes(calls);
+  },
+);
+
+it('写真詳細の矢印表示を写真移動中は保ち、一覧へ戻ったらリセットする', async () => {
+  const user = userEvent.setup();
+  render(<App designPreview initialPath="/photo/1" />);
+  const image = await screen.findByRole('img', { name: '湖畔の朝' });
+  screen.getByRole('group', { name: /写真ビューアー/ }).focus();
+  await user.keyboard('{Enter}');
+  expect(screen.getByRole('img', { name: '湖畔の朝' })).toBe(image);
+  await user.click(button('次の写真'));
+  expect(await screen.findByRole('img', { name: '山へ続く道' })).toBeTruthy();
+  expect(button('次の写真')).toBeTruthy();
+  await user.click(button('戻る'));
+  await user.click(
+    await screen.findByRole('button', { name: '湖畔の朝を開く' }),
+  );
+  expect(await screen.findByRole('img', { name: '湖畔の朝' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: '次の写真' })).toBeNull();
+});
+
+it.each([
+  ['/', 18],
+  ['/favorites', 5],
+  ['/album/秋の小旅行', 8],
+] as const)('写真を何枚移動しても元の一覧へ戻る: %s', async (path, count) => {
+  const user = userEvent.setup();
+  render(<App designPreview initialPath={path} />);
+  await user.click(
+    await screen.findByRole('button', { name: '湖畔の朝を開く' }),
+  );
+  await screen.findByRole('img', { name: '湖畔の朝' });
+  await user.keyboard('{ArrowRight}{ArrowRight}');
+  await screen.findByRole('img', { name: '青い時間' });
+  await user.click(button('戻る'));
+  expect(document.querySelectorAll('.photo-grid > .photo-tile')).toHaveLength(
+    count,
+  );
+  if (path.startsWith('/album/'))
+    expect(screen.getByRole('heading', { name: '秋の小旅行' })).toBeTruthy();
+  if (path === '/favorites')
+    expect(screen.getByRole('heading', { name: 'お気に入り' })).toBeTruthy();
+  await user.click(button('湖畔の朝を開く'));
+  await user.keyboard('{ArrowRight}{Escape}');
+  expect(document.querySelectorAll('.photo-grid > .photo-tile')).toHaveLength(
+    count,
+  );
 });
