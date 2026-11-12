@@ -150,3 +150,116 @@ test('連続グリッドをスクロールするとアップロード期間が�
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(period).toBeHidden();
 });
+
+test.describe('長押し選択', () => {
+  test.use({ hasTouch: true });
+  test('丸を隠し、長押し後の追加選択・解除・アルバム保存を操作できる', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 393, height: 852 });
+    await page.goto(story());
+    const first = page.getByRole('button', {
+      name: '湖畔の朝を開く',
+      exact: true,
+    });
+    await expect(first).toBeVisible();
+    await expect(page.locator('.photo-select')).toHaveCount(0);
+    await first.scrollIntoViewIfNeeded();
+    const bounds = await first.boundingBox();
+    if (!bounds) throw new Error('写真が表示されていません');
+    const touch = await page.context().newCDPSession(page);
+    await touch.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [
+        { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 },
+      ],
+    });
+    await expect(
+      page.getByRole('status', { name: '1枚を選択中' }),
+    ).toBeVisible();
+    await touch.send('Input.dispatchTouchEvent', {
+      type: 'touchEnd',
+      touchPoints: [],
+    });
+    await expect(
+      page.getByRole('status', { name: '1枚を選択中' }),
+    ).toBeVisible();
+    await expect(page.locator('.photo-select')).toHaveCount(18);
+    await expect(
+      page.getByRole('navigation', { name: 'メインナビゲーション' }),
+    ).toHaveCount(0);
+    await page
+      .getByRole('button', { name: '山へ続く道を選択', exact: true })
+      .tap();
+    await expect(
+      page.getByRole('status', { name: '2枚を選択中' }),
+    ).toBeVisible();
+    await page.mouse.move(10, 20);
+    await page.screenshot({ path: '../../work/mobile-dark-selection.png' });
+    const panel = page.getByRole('region', { name: '選択した写真の操作' });
+    await panel
+      .getByRole('button', { name: 'アルバムに追加', exact: true })
+      .tap();
+    await page.getByRole('button', { name: 'キャンセル', exact: true }).click();
+    await expect(
+      page.getByRole('status', { name: '2枚を選択中' }),
+    ).toBeVisible();
+    await panel
+      .getByRole('button', { name: 'アルバムに追加', exact: true })
+      .tap();
+    await page
+      .getByRole('combobox', { name: '追加先' })
+      .selectOption('海のある休日');
+    await page.getByRole('button', { name: '追加', exact: true }).click();
+    await expect(page.locator('.selection-panel')).toHaveCount(0);
+    await expect(page.locator('.photo-select')).toHaveCount(0);
+    await first.focus();
+    await page.keyboard.press('Shift+Enter');
+    await page
+      .getByRole('button', { name: '湖畔の朝を選択', exact: true })
+      .click();
+    await expect(
+      page.getByRole('status', { name: '0枚を選択中' }),
+    ).toBeVisible();
+    await expect(
+      panel.getByRole('button', { name: 'アルバムに追加', exact: true }),
+    ).toBeDisabled();
+    await page.getByRole('button', { name: '選択解除', exact: true }).click();
+    await expect(page.locator('.photo-select')).toHaveCount(0);
+  });
+  test('選択状態のStoryを直接レビューできる', async ({ page }) => {
+    await page.setViewportSize({ width: 393, height: 852 });
+    await page.goto(story('selection'));
+    await expect(
+      page.getByRole('status', { name: '1枚を選択中' }),
+    ).toBeVisible();
+    await expect(page.locator('.photo-select')).toHaveCount(18);
+    await expect(
+      page.getByRole('region', { name: '選択した写真の操作' }),
+    ).toBeVisible();
+  });
+  test('指の移動・キャンセルでは長押し選択を開始しない', async ({ page }) => {
+    await page.setViewportSize({ width: 393, height: 852 });
+    await page.goto(story());
+    const first = page.getByRole('button', {
+      name: '湖畔の朝を開く',
+      exact: true,
+    });
+    await first.dispatchEvent('pointerdown', {
+      button: 0,
+      isPrimary: true,
+      pointerType: 'touch',
+      clientX: 50,
+      clientY: 130,
+    });
+    await first.dispatchEvent('pointermove', {
+      pointerType: 'touch',
+      clientX: 50,
+      clientY: 180,
+    });
+    await first.dispatchEvent('pointercancel', { pointerType: 'touch' });
+    await page.waitForTimeout(600);
+    await expect(page.locator('.selection-panel')).toHaveCount(0);
+    await expect(page.locator('.photo-select')).toHaveCount(0);
+  });
+});

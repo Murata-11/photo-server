@@ -1,3 +1,4 @@
+import { SelectablePhotoTile } from './SelectablePhotoTile';
 import { ContinuousPhotoGrid } from './ContinuousPhotoGrid';
 import { BulkTrashDialog } from './BulkTrashDialog';
 import './mobile-dark.css';
@@ -92,6 +93,7 @@ function PhotoApp({
     [albumName, setAlbumName] = useState(''),
     [newAlbums, setNewAlbums] = useState<string[]>([]),
     [selected, setSelected] = useState<string[]>([]),
+    [selectionMode, setSelectionMode] = useState(false),
     [bulkAlbumOpen, setBulkAlbumOpen] = useState(false),
     [bulkTrashOpen, setBulkTrashOpen] = useState(false),
     [mobileMenu, setMobileMenu] = useState(false),
@@ -103,6 +105,33 @@ function PhotoApp({
   const navigate = useNavigate(),
     location = useLocation(),
     fileInput = useRef<HTMLInputElement>(null);
+  const ignoredPhotoClick = useRef<string | null>(null);
+  function endSelection() {
+    setSelected([]);
+    setSelectionMode(false);
+    ignoredPhotoClick.current = null;
+  }
+  function selectPhoto(id: string) {
+    if (ignoredPhotoClick.current === id) {
+      ignoredPhotoClick.current = null;
+      return;
+    }
+    setSelected((previous) =>
+      previous.includes(id)
+        ? previous.filter((value) => value !== id)
+        : [...previous, id],
+    );
+  }
+  async function favoriteSelected() {
+    const failed: string[] = [];
+    for (const photo of photos.filter((photo) => selected.includes(photo.id)))
+      if (!(await update(photo, { favorite: true }))) failed.push(photo.id);
+    setSelected(failed);
+    if (!failed.length) {
+      setSelectionMode(false);
+      toast.success('お気に入りに追加しました');
+    }
+  }
   async function load() {
     setLoading(true);
     setError('');
@@ -125,7 +154,7 @@ function PhotoApp({
     load();
   }, []);
   useEffect(() => {
-    setSelected([]);
+    endSelection();
     setMobileMenu(false);
     setFilter('すべて');
     setShowInfo(false);
@@ -204,40 +233,71 @@ function PhotoApp({
     const visible = base.filter((p) => filter !== 'お気に入り' || p.favorite);
     const dates = [...new Set(visible.map((p) => p.date))].sort().reverse();
     const minimalPhotos = designPreview && !album && !isTrash && !isFavorite;
-    const renderPhoto = (photo: Photo) => (
-      <div
-        key={photo.id}
-        data-uploaded-at={photo.createdAt}
-        className={`photo-tile ${selected.includes(photo.id) ? 'selected' : ''}`}
-      >
-        <button
-          className="photo-open"
-          onClick={() => navigate('/photo/' + photo.id)}
-          aria-label={`${photo.name}を開く`}
+    const renderPhoto = (photo: Photo) =>
+      designPreview ? (
+        <SelectablePhotoTile
+          key={photo.id}
+          photo={photo}
+          selected={selected.includes(photo.id)}
+          selecting={selectionMode}
+          onPointerStart={() => {
+            ignoredPhotoClick.current = null;
+          }}
+          onLongPress={() => {
+            ignoredPhotoClick.current = photo.id;
+            setSelectionMode(true);
+            setSelected([photo.id]);
+          }}
+          onKeyboardSelect={() => {
+            ignoredPhotoClick.current = null;
+            setSelectionMode(true);
+            setSelected((previous) =>
+              previous.includes(photo.id) ? previous : [...previous, photo.id],
+            );
+          }}
+          onToggle={() => selectPhoto(photo.id)}
+          onOpen={() => {
+            if (ignoredPhotoClick.current === photo.id) {
+              ignoredPhotoClick.current = null;
+              return;
+            }
+            navigate('/photo/' + photo.id);
+          }}
+        />
+      ) : (
+        <div
+          key={photo.id}
+          data-uploaded-at={photo.createdAt}
+          className={`photo-tile ${selected.includes(photo.id) ? 'selected' : ''}`}
         >
-          <img loading="lazy" src={photo.src} alt={photo.name} />
-          <span className="tile-shade" />
-          <span className="tile-name">{photo.name}</span>
-        </button>
-        <button
-          className="photo-select"
-          aria-label={`${photo.name}を選択`}
-          aria-pressed={selected.includes(photo.id)}
-          onClick={() =>
-            setSelected((prev) =>
-              prev.includes(photo.id)
-                ? prev.filter((id) => id !== photo.id)
-                : [...prev, photo.id],
-            )
-          }
-        >
-          <Check size={14} />
-        </button>
-        {photo.favorite && (
-          <Heart className="tile-heart" size={17} fill="white" />
-        )}
-      </div>
-    );
+          <button
+            className="photo-open"
+            onClick={() => navigate('/photo/' + photo.id)}
+            aria-label={`${photo.name}を開く`}
+          >
+            <img loading="lazy" src={photo.src} alt={photo.name} />
+            <span className="tile-shade" />
+            <span className="tile-name">{photo.name}</span>
+          </button>
+          <button
+            className="photo-select"
+            aria-label={`${photo.name}を選択`}
+            aria-pressed={selected.includes(photo.id)}
+            onClick={() =>
+              setSelected((prev) =>
+                prev.includes(photo.id)
+                  ? prev.filter((id) => id !== photo.id)
+                  : [...prev, photo.id],
+              )
+            }
+          >
+            <Check size={14} />
+          </button>
+          {photo.favorite && (
+            <Heart className="tile-heart" size={17} fill="white" />
+          )}
+        </div>
+      );
     return (
       <>
         {!minimalPhotos && (
@@ -346,7 +406,7 @@ function PhotoApp({
             </span>
           </div>
         )}
-        {selected.length > 0 && (
+        {selected.length > 0 && !designPreview && (
           <div className="selection-bar">
             {!isTrash && (
               <Button
@@ -382,18 +442,7 @@ function PhotoApp({
                   アルバムに追加
                 </Button>
               )}
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={async () => {
-                  const failed: string[] = [];
-                  for (const p of photos.filter((p) => selected.includes(p.id)))
-                    if (!(await update(p, { favorite: true })))
-                      failed.push(p.id);
-                  setSelected(failed);
-                  if (!failed.length) toast.success('お気に入りに追加しました');
-                }}
-              >
+              <Button variant="secondary" size="sm" onClick={favoriteSelected}>
                 <Heart size={16} />
                 お気に入りに追加
               </Button>
@@ -650,9 +699,21 @@ function PhotoApp({
     );
   }
   return (
-    <div className={`app-shell${designPreview ? ' mobile-dark' : ''}`}>
+    <div
+      className={`app-shell${designPreview ? ' mobile-dark' : ''}${designPreview && selectionMode ? ' photo-selection-mode' : ''}`}
+    >
       <Toaster position="bottom-center" richColors />
       <header className="topbar">
+        {designPreview && selectionMode && (
+          <div className="selection-count">
+            <button aria-label="選択解除" onClick={endSelection}>
+              <X size={21} />
+            </button>
+            <span role="status" aria-label={`${selected.length}枚を選択中`}>
+              {selected.length}
+            </span>
+          </div>
+        )}
         <button
           className="mobile-toggle"
           aria-label="メニュー"
@@ -827,7 +888,7 @@ function PhotoApp({
           <Route path="/photo/:id" element={<Detail />} />
         </Routes>
       </main>
-      {!mobileMenu && (
+      {!mobileMenu && !(designPreview && selectionMode) && (
         <nav className="mobile-bottom-nav" aria-label="メインナビゲーション">
           {(designPreview
             ? navigation.filter(({ to }) => to !== '/favorites')
@@ -860,6 +921,31 @@ function PhotoApp({
           )}
         </nav>
       )}
+      {designPreview && selectionMode && (
+        <section className="selection-panel" aria-label="選択した写真の操作">
+          <span className="selection-panel-handle" aria-hidden="true" />
+          <div className="selection-panel-actions">
+            <button
+              disabled={!selected.length || isTrash}
+              onClick={() => setBulkAlbumOpen(true)}
+            >
+              <FolderHeart size={24} />
+              <span>アルバムに追加</span>
+            </button>
+            <button disabled={!selected.length} onClick={favoriteSelected}>
+              <Heart size={24} />
+              <span>お気に入り</span>
+            </button>
+            <button
+              disabled={!selected.length || isTrash}
+              onClick={() => setBulkTrashOpen(true)}
+            >
+              <Trash2 size={24} />
+              <span>ゴミ箱に移動</span>
+            </button>
+          </div>
+        </section>
+      )}
       <BulkTrashDialog
         open={bulkTrashOpen}
         onOpenChange={setBulkTrashOpen}
@@ -870,7 +956,7 @@ function PhotoApp({
             : undefined
         }
         onSaved={(ids) => {
-          setSelected([]);
+          endSelection();
           setPhotos((previous) =>
             previous.map((photo) =>
               ids.includes(photo.id) ? { ...photo, deleted: true } : photo,
@@ -891,7 +977,7 @@ function PhotoApp({
         onOpenChange={setBulkAlbumOpen}
         photoIds={selected}
         albums={newAlbums}
-        onSaved={() => setSelected([])}
+        onSaved={endSelection}
         onReload={async () => {
           const [nextPhotos, nextAlbums] = await Promise.all([
             api.list(),

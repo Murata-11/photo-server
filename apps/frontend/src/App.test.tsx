@@ -20,6 +20,7 @@ vi.mock('./lib/api', () => ({
     createAlbum: vi.fn(),
     update: vi.fn(),
     addAlbum: vi.fn(),
+    addPhotosAlbum: vi.fn(),
     removeAlbum: vi.fn(),
     trashPhotos: vi.fn(),
   },
@@ -224,4 +225,51 @@ it('一括移動で対象だけを除き再取得失敗から更新のみ再試�
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   expect(api.trashPhotos).toHaveBeenCalledTimes(1);
   expect(api.trashPhotos).toHaveBeenCalledWith({ photoIds: ['1', '2'] });
+});
+
+it('ダークUIはキーボードから複数選択し、0枚・終了・お気に入り保存を扱う', async () => {
+  const user = userEvent.setup();
+  render(<App designPreview />);
+  const first = await screen.findByRole('button', { name: '湖畔の朝を開く' });
+  expect(document.querySelector('.photo-select')).toBeNull();
+  first.focus();
+  await user.keyboard('{Shift>}{Enter}{/Shift}');
+  expect(screen.getByRole('status', { name: '1枚を選択中' })).toBeTruthy();
+  await user.click(button('山へ続く道を選択'));
+  expect(screen.getByRole('status', { name: '2枚を選択中' })).toBeTruthy();
+  await user.click(button('湖畔の朝を選択'));
+  await user.click(button('山へ続く道を選択'));
+  expect(screen.getByRole('status', { name: '0枚を選択中' })).toBeTruthy();
+  expect(button('お気に入り').hasAttribute('disabled')).toBe(true);
+  await user.click(button('山へ続く道を選択'));
+  await user.click(button('お気に入り'));
+  await waitFor(() =>
+    expect(document.querySelector('.selection-panel')).toBeNull(),
+  );
+  expect(api.update).toHaveBeenCalledWith('2', { favorite: true });
+  await user.click(button('山へ続く道を開く'));
+  expect(
+    await screen.findByRole('heading', { name: '山へ続く道' }),
+  ).toBeTruthy();
+});
+it('ダークUIで選択を解除し、選択した写真を既存アルバムへ追加する', async () => {
+  const user = userEvent.setup();
+  vi.mocked(api.addPhotosAlbum).mockResolvedValue(undefined);
+  render(<App designPreview />);
+  const first = await screen.findByRole('button', { name: '湖畔の朝を開く' });
+  first.focus();
+  await user.keyboard('{Shift>}{Enter}{/Shift}');
+  await user.click(button('選択解除'));
+  expect(document.querySelector('.photo-select')).toBeNull();
+  button('湖畔の朝を開く').focus();
+  await user.keyboard('{Shift>}{Enter}{/Shift}');
+  await user.click(button('アルバムに追加'));
+  await user.selectOptions(
+    screen.getByRole('combobox', { name: '追加先' }),
+    '空のアルバム',
+  );
+  await user.click(button('追加'));
+  await waitFor(() =>
+    expect(document.querySelector('.selection-panel')).toBeNull(),
+  );
 });
