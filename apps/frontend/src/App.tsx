@@ -118,6 +118,7 @@ function PhotoApp({
     location = useLocation(),
     fileInput = useRef<HTMLInputElement>(null);
   const ignoredPhotoClick = useRef<string | null>(null);
+  const detailArrows = useRef(false);
   function endSelection() {
     setSelected([]);
     setSelectionMode(false);
@@ -167,6 +168,7 @@ function PhotoApp({
   }, []);
   useEffect(() => {
     endSelection();
+    if (!location.pathname.startsWith('/photo/')) detailArrows.current = false;
     setMobileMenu(false);
     setFilter('すべて');
     setShowInfo(false);
@@ -645,6 +647,10 @@ function PhotoApp({
           <SwipePhotoStage
             src={photo.src}
             name={photo.name}
+            initialArrowsVisible={detailArrows.current}
+            onArrowsChange={(visible) => {
+              detailArrows.current = visible;
+            }}
             onPrevious={
               previous ? () => navigate('/photo/' + previous.id) : undefined
             }
@@ -724,7 +730,7 @@ function PhotoApp({
   }
   return (
     <div
-      className={`app-shell${designPreview ? ' mobile-dark' : ''}${designPreview && selectionMode ? ' photo-selection-mode' : ''}`}
+      className={`app-shell${designPreview ? ' mobile-dark' : ''}${designPreview && selectionMode ? ' photo-selection-mode' : ''}${designPreview && location.pathname.startsWith('/photo/') ? ' photo-detail-mode' : ''}`}
     >
       <Toaster position="bottom-center" richColors />
       <header className="topbar">

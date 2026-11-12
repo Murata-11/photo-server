@@ -292,7 +292,7 @@ test.describe('長押し選択', () => {
 
 test.describe('写真詳細のスワイプ', () => {
   test.use({ hasTouch: true });
-  test('写真詳細は矢印・キャプションなしで左右スワイプできる', async ({
+  test('写真詳細は上下固定でスワイプし、タップで矢印を切り替えられる', async ({
     page,
   }) => {
     await page.setViewportSize({ width: 393, height: 852 });
@@ -340,7 +340,32 @@ test.describe('写真詳細のスワイプ', () => {
     await expect(photo).toHaveAttribute('alt', '湖畔の朝');
     await swipe('short');
     await expect(photo).toHaveAttribute('alt', '湖畔の朝');
+    const fixedY = (await page.locator('.swipe-photo-stage').boundingBox())?.y;
     await swipe('vertical');
+    await expect(photo).toHaveAttribute('alt', '湖畔の朝');
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    expect((await page.locator('.swipe-photo-stage').boundingBox())?.y).toBe(
+      fixedY,
+    );
+    await page.mouse.wheel(0, 400);
+    await page.evaluate(() => new Promise(requestAnimationFrame));
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    await photo.tap();
+    await expect(
+      page.getByRole('button', { name: '次の写真', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: '前の写真', exact: true }),
+    ).toBeDisabled();
+    await page.getByRole('button', { name: '次の写真', exact: true }).tap();
+    await expect(photo).toHaveAttribute('alt', '山へ続く道');
+    await page.getByRole('button', { name: '次の写真', exact: true }).tap();
+    await expect(photo).toHaveAttribute('alt', '青い時間');
+    await page.getByRole('button', { name: '前の写真', exact: true }).tap();
+    await expect(photo).toHaveAttribute('alt', '山へ続く道');
+    await photo.tap();
+    await expect(page.locator('.previous-photo, .next-photo')).toHaveCount(0);
+    await page.keyboard.press('ArrowLeft');
     await expect(photo).toHaveAttribute('alt', '湖畔の朝');
     await page.keyboard.press('ArrowRight');
     await expect(photo).toHaveAttribute('alt', '山へ続く道');

@@ -476,10 +476,59 @@ body:has(.mobile-dark) .dialog-description {
 }
 
 .mobile-dark .swipe-photo-stage {
-  touch-action: pan-y pinch-zoom;
+  touch-action: pinch-zoom;
   user-select: none;
   -webkit-user-select: none;
 }
 .mobile-dark .swipe-photo-stage img {
   -webkit-touch-callout: none;
+}
+
+html:has(.mobile-dark.photo-detail-mode),
+body:has(.mobile-dark.photo-detail-mode) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+.mobile-dark.photo-detail-mode {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  display: flex;
+  flex-direction: column;
+}
+.mobile-dark.photo-detail-mode .topbar {
+  flex-shrink: 0;
+}
+.mobile-dark.photo-detail-mode .main-content {
+  flex: 1;
+  min-height: 0;
+  padding: 12px 12px calc(108px + env(safe-area-inset-bottom, 0px));
+  overflow: hidden;
+}
+.mobile-dark.photo-detail-mode .detail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+}
+.mobile-dark.photo-detail-mode .detail-toolbar {
+  flex-shrink: 0;
+  margin: 0 0 12px;
+}
+.mobile-dark.photo-detail-mode .swipe-photo-stage {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 12px;
+  overflow: hidden;
+}
+.mobile-dark.photo-detail-mode .info-panel {
+  max-height: calc(100% - 56px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }

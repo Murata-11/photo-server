@@ -293,3 +293,21 @@ it.each(['/', '/album/秋の小旅行'])(
     expect(api.list).toHaveBeenCalledTimes(calls);
   },
 );
+
+it('写真詳細の矢印表示を写真移動中は保ち、一覧へ戻ったらリセットする', async () => {
+  const user = userEvent.setup();
+  render(<App designPreview initialPath="/photo/1" />);
+  const image = await screen.findByRole('img', { name: '湖畔の朝' });
+  screen.getByRole('group', { name: /写真ビューアー/ }).focus();
+  await user.keyboard('{Enter}');
+  expect(screen.getByRole('img', { name: '湖畔の朝' })).toBe(image);
+  await user.click(button('次の写真'));
+  expect(await screen.findByRole('img', { name: '山へ続く道' })).toBeTruthy();
+  expect(button('次の写真')).toBeTruthy();
+  await user.click(button('戻る'));
+  await user.click(
+    await screen.findByRole('button', { name: '湖畔の朝を開く' }),
+  );
+  expect(await screen.findByRole('img', { name: '湖畔の朝' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: '次の写真' })).toBeNull();
+});

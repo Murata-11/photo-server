@@ -73,3 +73,51 @@ it('先頭・末尾では折り返さず、画像の代替テキストを保つ'
   expect(screen.getByRole('img', { name: '湖畔' })).toBeTruthy();
   expect(screen.queryByRole('button')).toBeNull();
 });
+
+it('タップで矢印を切り替え、画像を作り直さず矢印ボタンで移動する', () => {
+  const onNext = vi.fn(),
+    onArrowsChange = vi.fn();
+  render(
+    <SwipePhotoStage
+      src="photo.jpg"
+      name="湖畔"
+      onNext={onNext}
+      onArrowsChange={onArrowsChange}
+    />,
+  );
+  const stage = screen.getByRole('group');
+  const image = screen.getByRole('img');
+  fireEvent.pointerDown(stage, { button: 0, clientX: 100, clientY: 100 });
+  fireEvent.pointerUp(stage, { clientX: 100, clientY: 100 });
+  const next = screen.getByRole('button', { name: '次の写真' });
+  expect(
+    screen.getByRole('button', { name: '前の写真' }).hasAttribute('disabled'),
+  ).toBe(true);
+  fireEvent.pointerDown(next, { button: 0 });
+  fireEvent.pointerUp(next);
+  fireEvent.click(next);
+  expect(onNext).toHaveBeenCalledOnce();
+  expect(screen.getByRole('button', { name: '次の写真' })).toBe(next);
+  expect(screen.getByRole('img')).toBe(image);
+  fireEvent.pointerDown(stage, { button: 0, clientX: 100, clientY: 100 });
+  fireEvent.pointerUp(stage, { clientX: 100, clientY: 100 });
+  expect(screen.queryByRole('button')).toBeNull();
+  expect(screen.getByRole('img')).toBe(image);
+  expect(onArrowsChange.mock.calls).toEqual([[true], [false]]);
+});
+it('移動して戻したジェスチャーをタップと誤判定しない', () => {
+  render(<SwipePhotoStage src="photo.jpg" name="湖畔" />);
+  const stage = screen.getByRole('group');
+  fireEvent.pointerDown(stage, { button: 0, clientX: 100, clientY: 100 });
+  fireEvent.pointerMove(stage, { clientX: 200, clientY: 100 });
+  fireEvent.pointerUp(stage, { clientX: 100, clientY: 100 });
+  expect(screen.queryByRole('button')).toBeNull();
+});
+it('EnterとSpaceで矢印を表示・非表示にできる', () => {
+  render(<SwipePhotoStage src="photo.jpg" name="湖畔" />);
+  const stage = screen.getByRole('group');
+  fireEvent.keyDown(stage, { key: 'Enter' });
+  expect(screen.getAllByRole('button')).toHaveLength(2);
+  fireEvent.keyDown(stage, { key: ' ' });
+  expect(screen.queryByRole('button')).toBeNull();
+});
