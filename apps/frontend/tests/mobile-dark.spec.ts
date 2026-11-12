@@ -14,7 +14,9 @@ test('ダークUIをスマホで操作し、アルバム・作成・詳細を確
   await expect(page.locator('.app-shell')).toHaveClass(/mobile-dark/);
   await expect(page.locator('.main-content > .page-heading')).toHaveCount(0);
   await expect(page.locator('.gallery-toolbar')).toHaveCount(0);
-  await expect(page.locator('.date-heading').first()).toBeVisible();
+  await expect(page.locator('.date-heading')).toHaveCount(0);
+  await expect(page.locator('.photo-grid')).toHaveCount(1);
+  await expect(page.locator('.photo-grid > .photo-tile')).toHaveCount(18);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -125,4 +127,26 @@ test('専用iPhoneプレビューと320px幅でナビと最後の写真を確認
   const photo = await last.boundingBox();
   const nav = await page.locator('.mobile-bottom-nav').boundingBox();
   expect(photo && nav && photo.y + photo.height <= nav.y).toBeTruthy();
+});
+
+test('連続グリッドをスクロールするとアップロード期間が切り替わる', async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date('2026-11-12T12:00:00Z'));
+  await page.setViewportSize({ width: 393, height: 300 });
+  await page.goto(story());
+  await expect(page.locator('.photo-tile')).toHaveCount(18);
+  const period = page.getByLabel('アップロード期間（UTC）');
+  await expect(period).toBeHidden();
+  await page.evaluate(() => window.scrollTo(0, 100));
+  await expect(period).toHaveText('11月2日〜8日');
+  await expect(period).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await expect(period).toHaveText('10月19日〜25日');
+  await page.screenshot({
+    path: '../../work/mobile-dark-period.png',
+    style: '[data-sonner-toaster] { visibility: hidden; }',
+  });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(period).toBeHidden();
 });

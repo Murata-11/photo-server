@@ -1,3 +1,4 @@
+import { ContinuousPhotoGrid } from './ContinuousPhotoGrid';
 import { BulkTrashDialog } from './BulkTrashDialog';
 import './mobile-dark.css';
 import { BulkAlbumDialog } from './BulkAlbumDialog';
@@ -203,6 +204,40 @@ function PhotoApp({
     const visible = base.filter((p) => filter !== 'お気に入り' || p.favorite);
     const dates = [...new Set(visible.map((p) => p.date))].sort().reverse();
     const minimalPhotos = designPreview && !album && !isTrash && !isFavorite;
+    const renderPhoto = (photo: Photo) => (
+      <div
+        key={photo.id}
+        data-uploaded-at={photo.createdAt}
+        className={`photo-tile ${selected.includes(photo.id) ? 'selected' : ''}`}
+      >
+        <button
+          className="photo-open"
+          onClick={() => navigate('/photo/' + photo.id)}
+          aria-label={`${photo.name}を開く`}
+        >
+          <img loading="lazy" src={photo.src} alt={photo.name} />
+          <span className="tile-shade" />
+          <span className="tile-name">{photo.name}</span>
+        </button>
+        <button
+          className="photo-select"
+          aria-label={`${photo.name}を選択`}
+          aria-pressed={selected.includes(photo.id)}
+          onClick={() =>
+            setSelected((prev) =>
+              prev.includes(photo.id)
+                ? prev.filter((id) => id !== photo.id)
+                : [...prev, photo.id],
+            )
+          }
+        >
+          <Check size={14} />
+        </button>
+        {photo.favorite && (
+          <Heart className="tile-heart" size={17} fill="white" />
+        )}
+      </div>
+    );
     return (
       <>
         {!minimalPhotos && (
@@ -389,6 +424,12 @@ function PhotoApp({
               </Button>
             )}
           </div>
+        ) : minimalPhotos ? (
+          <ContinuousPhotoGrid>
+            {[...visible]
+              .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+              .map(renderPhoto)}
+          </ContinuousPhotoGrid>
         ) : (
           dates.map((date) => (
             <section className="date-section" key={date}>
@@ -406,41 +447,7 @@ function PhotoApp({
                 <span>{visible.filter((p) => p.date === date).length}枚</span>
               </div>
               <div className={`photo-grid ${compact ? 'compact' : ''}`}>
-                {visible
-                  .filter((p) => p.date === date)
-                  .map((photo) => (
-                    <div
-                      key={photo.id}
-                      className={`photo-tile ${selected.includes(photo.id) ? 'selected' : ''}`}
-                    >
-                      <button
-                        className="photo-open"
-                        onClick={() => navigate('/photo/' + photo.id)}
-                        aria-label={`${photo.name}を開く`}
-                      >
-                        <img loading="lazy" src={photo.src} alt={photo.name} />
-                        <span className="tile-shade" />
-                        <span className="tile-name">{photo.name}</span>
-                      </button>
-                      <button
-                        className="photo-select"
-                        aria-label={`${photo.name}を選択`}
-                        aria-pressed={selected.includes(photo.id)}
-                        onClick={() =>
-                          setSelected((prev) =>
-                            prev.includes(photo.id)
-                              ? prev.filter((id) => id !== photo.id)
-                              : [...prev, photo.id],
-                          )
-                        }
-                      >
-                        <Check size={14} />
-                      </button>
-                      {photo.favorite && (
-                        <Heart className="tile-heart" size={17} fill="white" />
-                      )}
-                    </div>
-                  ))}
+                {visible.filter((p) => p.date === date).map(renderPhoto)}
               </div>
             </section>
           ))

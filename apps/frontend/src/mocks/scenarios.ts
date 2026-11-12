@@ -3,8 +3,11 @@ import { seed, type Photo } from './data';
 let photos = structuredClone(seed);
 let albums: string[] = [...new Set(seed.flatMap((p) => p.albums))];
 let mode: 'normal' | 'empty' | 'error' | 'loading' = 'normal';
-export function resetStore(next: typeof mode = 'normal') {
-  photos = next === 'empty' ? [] : structuredClone(seed);
+export function resetStore(
+  next: typeof mode = 'normal',
+  initialPhotos: Photo[] = seed,
+) {
+  photos = next === 'empty' ? [] : structuredClone(initialPhotos);
   mode = next;
   membershipMode = 'normal';
   bulkMode = 'normal';
@@ -12,7 +15,10 @@ export function resetStore(next: typeof mode = 'normal') {
   trashCommitted = false;
   uploadMode = 'normal';
   bulkCommitted = false;
-  albums = next === 'empty' ? [] : [...new Set(seed.flatMap((p) => p.albums))];
+  albums =
+    next === 'empty'
+      ? []
+      : [...new Set(initialPhotos.flatMap((p) => p.albums))];
 }
 export const listPhotos: HttpResponseResolver = async () => {
   if (trashMode === 'refresh' && trashCommitted) {

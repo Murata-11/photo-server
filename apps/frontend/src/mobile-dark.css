@@ -308,3 +308,28 @@ body:has(.mobile-dark) .dialog-description {
   background: #2a2a30d9;
   color: #f2f2f4;
 }
+.mobile-dark .continuous-photo-grid {
+  margin: -16px 0 0;
+}
+.mobile-dark .upload-period {
+  position: fixed;
+  z-index: 31;
+  top: calc(18px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 11px 22px;
+  border: 1px solid #ffffff20;
+  border-radius: 30px;
+  background: #25252985;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 4px 18px #0003;
+  color: #f5f5f7;
+  font-size: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+@media (min-width: 761px) {
+  .mobile-dark .upload-period {
+    left: calc(50% + 125px);
+  }
+}
