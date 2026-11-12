@@ -14,7 +14,16 @@ function Preview() {
 const meta = {
   title: 'スマートフォン/iPhone 16',
   component: Preview,
-  parameters: { layout: 'fullscreen', controls: { disable: true } },
+  parameters: {
+    layout: 'fullscreen',
+    controls: { disable: true },
+    docs: {
+      description: {
+        story:
+          '写真詳細の「写真に保存」から元画像を準備し、共有画面を開く。iPhoneでは「画像を保存」を選ぶ。準備中・取得失敗と再試行・共有キャンセル/失敗・非対応時のダウンロードを扱う。共有の完了は写真保存の成功と扱わない。ネイティブの共有画面はiPhone実機で確認する。',
+      },
+    },
+  },
   beforeEach: () =>
     resetStore(
       'normal',
