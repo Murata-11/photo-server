@@ -474,3 +474,12 @@ body:has(.mobile-dark) .dialog-description {
 .mobile-dark .header-right {
   margin-left: 0;
 }
+
+.mobile-dark .swipe-photo-stage {
+  touch-action: pan-y pinch-zoom;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.mobile-dark .swipe-photo-stage img {
+  -webkit-touch-callout: none;
+}

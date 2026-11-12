@@ -248,9 +248,7 @@ it('ダークUIはキーボードから複数選択し、0枚・終了・お気�
   );
   expect(api.update).toHaveBeenCalledWith('2', { favorite: true });
   await user.click(button('山へ続く道を開く'));
-  expect(
-    await screen.findByRole('heading', { name: '山へ続く道' }),
-  ).toBeTruthy();
+  expect(await screen.findByRole('img', { name: '山へ続く道' })).toBeTruthy();
 });
 it('ダークUIで選択を解除し、選択した写真を既存アルバムへ追加する', async () => {
   const user = userEvent.setup();

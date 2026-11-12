@@ -65,9 +65,7 @@ test('ダークUIをスマホで操作し、アルバム・作成・詳細を確
   await page
     .getByRole('button', { name: '湖畔の朝を開く', exact: true })
     .click();
-  await expect(
-    page.getByRole('heading', { name: '湖畔の朝', exact: true }),
-  ).toBeVisible();
+  await expect(page.locator('.detail-image[alt="湖畔の朝"]')).toBeVisible();
   await page.screenshot({
     path: '../../work/mobile-dark-detail.png',
     fullPage: false,
@@ -289,5 +287,67 @@ test.describe('長押し選択', () => {
     await page.waitForTimeout(600);
     await expect(page.locator('.selection-panel')).toHaveCount(0);
     await expect(page.locator('.photo-select')).toHaveCount(0);
+  });
+});
+
+test.describe('写真詳細のスワイプ', () => {
+  test.use({ hasTouch: true });
+  test('写真詳細は矢印・キャプションなしで左右スワイプできる', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 393, height: 852 });
+    await page.goto(story('detail'));
+    const photo = page.locator('.detail-image');
+    await expect(photo).toHaveAttribute('alt', '湖畔の朝');
+    await expect(
+      page.locator('.previous-photo, .next-photo, .detail-caption'),
+    ).toHaveCount(0);
+    const touch = await page.context().newCDPSession(page);
+    async function swipe(direction: 'left' | 'right' | 'short' | 'vertical') {
+      const stage = page.locator('.swipe-photo-stage');
+      await stage.scrollIntoViewIfNeeded();
+      const bounds = await stage.boundingBox();
+      if (!bounds) throw new Error('写真が表示されていません');
+      const x = bounds.x + bounds.width / 2,
+        y = bounds.y + bounds.height / 2;
+      const dx =
+        direction === 'left'
+          ? -120
+          : direction === 'right'
+            ? 120
+            : direction === 'short'
+              ? 15
+              : 0;
+      const dy = direction === 'vertical' ? -100 : 0;
+      await touch.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x, y }],
+      });
+      await touch.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: x + dx, y: y + dy }],
+      });
+      await touch.send('Input.dispatchTouchEvent', {
+        type: 'touchEnd',
+        touchPoints: [],
+      });
+    }
+    await swipe('right');
+    await expect(photo).toHaveAttribute('alt', '湖畔の朝');
+    await swipe('left');
+    await expect(photo).toHaveAttribute('alt', '山へ続く道');
+    await swipe('right');
+    await expect(photo).toHaveAttribute('alt', '湖畔の朝');
+    await swipe('short');
+    await expect(photo).toHaveAttribute('alt', '湖畔の朝');
+    await swipe('vertical');
+    await expect(photo).toHaveAttribute('alt', '湖畔の朝');
+    await page.keyboard.press('ArrowRight');
+    await expect(photo).toHaveAttribute('alt', '山へ続く道');
+    await page.getByRole('button', { name: '写真の情報', exact: true }).click();
+    await expect(
+      page.getByRole('heading', { name: '写真の情報', exact: true }),
+    ).toBeVisible();
+    await expect(page.locator('.info-panel')).toContainText('山へ続く道');
   });
 });

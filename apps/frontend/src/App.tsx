@@ -1,3 +1,4 @@
+import { SwipePhotoStage } from './SwipePhotoStage';
 import { SelectablePhotoTile } from './SelectablePhotoTile';
 import { ContinuousPhotoGrid } from './ContinuousPhotoGrid';
 import { BulkTrashDialog } from './BulkTrashDialog';
@@ -640,35 +641,48 @@ function PhotoApp({
             )}
           </div>
         </div>
-        <div className="detail-stage">
-          <Button
-            className="previous-photo"
-            variant="outline"
-            size="icon"
-            aria-label="前の写真"
-            disabled={index === 0}
-            onClick={() => previous && navigate('/photo/' + previous.id)}
-          >
-            <ArrowLeft size={20} />
-          </Button>
-          <img className="detail-image" src={photo.src} alt={photo.name} />
-          <Button
-            className="next-photo"
-            variant="outline"
-            size="icon"
-            aria-label="次の写真"
-            disabled={index === siblings.length - 1}
-            onClick={() => next && navigate('/photo/' + next.id)}
-          >
-            <ArrowRight size={20} />
-          </Button>
-        </div>
-        <div className="detail-caption">
-          <h1>{photo.name}</h1>
-          <p>
-            {photo.date.replaceAll('-', ' / ')} ・ {photo.location}
-          </p>
-        </div>
+        {designPreview ? (
+          <SwipePhotoStage
+            src={photo.src}
+            name={photo.name}
+            onPrevious={
+              previous ? () => navigate('/photo/' + previous.id) : undefined
+            }
+            onNext={next ? () => navigate('/photo/' + next.id) : undefined}
+          />
+        ) : (
+          <div className="detail-stage">
+            <Button
+              className="previous-photo"
+              variant="outline"
+              size="icon"
+              aria-label="前の写真"
+              disabled={index === 0}
+              onClick={() => previous && navigate('/photo/' + previous.id)}
+            >
+              <ArrowLeft size={20} />
+            </Button>
+            <img className="detail-image" src={photo.src} alt={photo.name} />
+            <Button
+              className="next-photo"
+              variant="outline"
+              size="icon"
+              aria-label="次の写真"
+              disabled={index === siblings.length - 1}
+              onClick={() => next && navigate('/photo/' + next.id)}
+            >
+              <ArrowRight size={20} />
+            </Button>
+          </div>
+        )}
+        {!designPreview && (
+          <div className="detail-caption">
+            <h1>{photo.name}</h1>
+            <p>
+              {photo.date.replaceAll('-', ' / ')} ・ {photo.location}
+            </p>
+          </div>
+        )}
         {showInfo && (
           <aside className="info-panel">
             <h2>写真の情報</h2>
