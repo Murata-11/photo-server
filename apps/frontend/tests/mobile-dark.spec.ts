@@ -12,6 +12,10 @@ test('ダークUIをスマホで操作し、アルバム・作成・詳細を確
     page.getByRole('button', { name: '湖畔の朝を開く', exact: true }),
   ).toBeVisible();
   await expect(page.locator('.app-shell')).toHaveClass(/mobile-dark/);
+  await expect(page.locator('#library-menu')).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'メニュー', exact: true }),
+  ).toHaveCount(0);
   await expect(page.locator('.main-content > .page-heading')).toHaveCount(0);
   await expect(page.locator('.gallery-toolbar')).toHaveCount(0);
   await expect(page.locator('.date-heading')).toHaveCount(0);
@@ -89,6 +93,11 @@ test('ダークUIの空・失敗・読み込み状態とPC幅を表示する', a
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(story());
+  await expect(page.locator('#library-menu')).toHaveCount(0);
+  await expect(page.locator('.mobile-bottom-nav')).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: '写真をアップロード', exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole('button', { name: '湖畔の朝を開く', exact: true }),
   ).toBeVisible();

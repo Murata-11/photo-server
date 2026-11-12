@@ -724,15 +724,17 @@ function PhotoApp({
             </span>
           </div>
         )}
-        <button
-          className="mobile-toggle"
-          aria-label="メニュー"
-          aria-expanded={mobileMenu}
-          aria-controls="library-menu"
-          onClick={() => setMobileMenu(!mobileMenu)}
-        >
-          <Menu />
-        </button>
+        {!designPreview && (
+          <button
+            className="mobile-toggle"
+            aria-label="メニュー"
+            aria-expanded={mobileMenu}
+            aria-controls="library-menu"
+            onClick={() => setMobileMenu(!mobileMenu)}
+          >
+            <Menu />
+          </button>
+        )}
         <NavLink to="/" className="brand">
           <span className="brand-icon">
             <span />
@@ -772,65 +774,71 @@ function PhotoApp({
           </button>
         </div>
       </header>
-      {mobileMenu && (
+      {!designPreview && mobileMenu && (
         <button
           className="mobile-menu-backdrop"
           aria-label="メニューを閉じる"
           onClick={() => setMobileMenu(false)}
         />
       )}
-      <aside
-        id="library-menu"
-        className={`sidebar ${mobileMenu ? 'mobile-open' : ''}`}
-      >
-        <Button className="upload-button" onClick={() => setUpload(true)}>
-          <Plus size={22} />
-          写真を追加
-        </Button>
-        <nav>
-          {navigation.map(({ to, label, icon: Icon }) => (
+      {!designPreview && (
+        <aside
+          id="library-menu"
+          className={`sidebar ${mobileMenu ? 'mobile-open' : ''}`}
+        >
+          <Button className="upload-button" onClick={() => setUpload(true)}>
+            <Plus size={22} />
+            写真を追加
+          </Button>
+          <nav>
+            {navigation.map(({ to, label, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end
+                className={({ isActive }) =>
+                  `nav-link ${isActive ? 'active' : ''}`
+                }
+              >
+                <Icon size={21} />
+                <span>{label}</span>
+                {to === '/' && (
+                  <span className="nav-count">{active.length}</span>
+                )}
+              </NavLink>
+            ))}
+            <div className="nav-separator" />
             <NavLink
-              key={to}
-              to={to}
-              end
+              to="/trash"
               className={({ isActive }) =>
                 `nav-link ${isActive ? 'active' : ''}`
               }
             >
-              <Icon size={21} />
-              <span>{label}</span>
-              {to === '/' && <span className="nav-count">{active.length}</span>}
+              <Trash2 size={21} />
+              <span>ゴミ箱</span>
             </NavLink>
-          ))}
-          <div className="nav-separator" />
-          <NavLink
-            to="/trash"
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-          >
-            <Trash2 size={21} />
-            <span>ゴミ箱</span>
-          </NavLink>
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="space-card">
-            <div className="space-icon">
-              <Cloud size={21} />
+          </nav>
+          <div className="sidebar-bottom">
+            <div className="space-card">
+              <div className="space-icon">
+                <Cloud size={21} />
+              </div>
+              <div>
+                <strong>ふたりのライブラリ</strong>
+                <span>思い出を、一緒に。</span>
+              </div>
+              <div className="small-avatars">
+                <span>H</span>
+                <span>M</span>
+              </div>
             </div>
-            <div>
-              <strong>ふたりのライブラリ</strong>
-              <span>思い出を、一緒に。</span>
-            </div>
-            <div className="small-avatars">
-              <span>H</span>
-              <span>M</span>
+            <div className="prototype-note">
+              <span />
+              デザインプレビュー
             </div>
           </div>
-          <div className="prototype-note">
-            <span />
-            デザインプレビュー
-          </div>
-        </div>
-      </aside>
+        </aside>
+      )}
       <main className="main-content">
         <Routes>
           <Route path="/" element={<GalleryRoute render={renderGallery} />} />
