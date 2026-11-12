@@ -1,0 +1,159 @@
+/* Issue #44 review: enabled only by the explicit appearancePreview prop. */
+.appearance-settings {
+  margin-top: 8px;
+  padding: 12px 0 0;
+  border-top: 1px solid #8886;
+  min-width: 0;
+}
+.appearance-settings legend {
+  padding: 0 10px;
+  font-size: 13px;
+}
+.appearance-settings label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 10px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.appearance-settings input {
+  width: 18px;
+  height: 18px;
+  accent-color: #387dc5;
+}
+.appearance-settings input:focus-visible {
+  outline: 2px solid #387dc5;
+  outline-offset: 3px;
+}
+.mobile-dark .account-navigation:has(.appearance-settings) {
+  width: 280px;
+  max-width: calc(100vw - 36px);
+  max-height: calc(100dvh - 120px);
+  overflow-y: auto;
+}
+.mobile-dark[data-appearance='light'] {
+  color-scheme: light;
+  color: #20232b;
+  background: #f8fafd;
+  --color-slate-900: #20232b;
+  --color-slate-600: #526075;
+  --color-slate-100: #e7ebf1;
+}
+.mobile-dark[data-appearance='light'] .main-content {
+  background: #f8fafd;
+}
+.mobile-dark[data-appearance='light'] .topbar {
+  background: #f8fafdf5;
+  border-color: #20232b12;
+}
+.mobile-dark[data-appearance='light']
+  :is(.brand, h1, .album-card h2, .empty-state h2, .detail-toolbar) {
+  color: #20232b;
+}
+.mobile-dark[data-appearance='light']
+  :is(.brand-dot, .new-album, .album-placeholder) {
+  color: #245b96;
+}
+.mobile-dark[data-appearance='light']
+  :is(.album-card p, .empty-state, .account-navigation p) {
+  color: #526075;
+}
+.mobile-dark[data-appearance='light']
+  :is(
+    .account-navigation,
+    .info-panel,
+    .selection-bar,
+    .selection-count,
+    .mobile-upload,
+    .album-placeholder,
+    .new-album
+  ) {
+  background: #fff;
+  color: #20232b;
+  border-color: #20232b26;
+}
+.mobile-dark[data-appearance='light'] .account-navigation {
+  box-shadow: 0 12px 32px #17253a26;
+}
+.mobile-dark[data-appearance='light'] .account-navigation a {
+  color: #20232b;
+}
+.mobile-dark[data-appearance='light']
+  .account-navigation
+  a:is(:hover, :focus-visible) {
+  background: #e7edf5;
+}
+.mobile-dark[data-appearance='light'] .avatar {
+  background: #e2eadb;
+  color: #34452c;
+  border-color: #c6d2bf;
+}
+.mobile-dark[data-appearance='light'] input {
+  color: #20232b;
+}
+.mobile-dark[data-appearance='light'] .mobile-bottom-nav {
+  background: #ffffff59;
+  border-color: #20232b26;
+  box-shadow: 0 10px 40px #17253a26;
+}
+.mobile-dark[data-appearance='light'] .mobile-nav-link {
+  color: #38475b;
+}
+.mobile-dark[data-appearance='light'] .mobile-nav-link.active {
+  background: #c9e4f5e8;
+  color: #163e60;
+}
+.mobile-dark[data-appearance='light'] .photo-tile {
+  background: #e7ebf1;
+}
+.mobile-dark[data-appearance='light'] .upload-period {
+  background: #ffffffb3;
+  color: #20232b;
+  border-color: #20232b26;
+}
+.mobile-dark[data-appearance='light'] .selection-panel {
+  background: #fffffff0;
+  border-color: #20232b26;
+}
+.mobile-dark[data-appearance='light'] .selection-panel-actions button {
+  color: #20232b;
+}
+.mobile-dark[data-appearance='light'] .selection-panel-handle {
+  background: #20232b40;
+}
+.mobile-dark[data-appearance='light'] .album-summary span {
+  background: #e7ebf1;
+}
+/* The image stage and over-image controls remain dark in both appearances. */
+body:has(.mobile-dark[data-appearance='light']) [role='dialog'] {
+  color-scheme: light;
+  background: #fff;
+  color: #20232b;
+  border-color: #20232b26;
+}
+body:has(.mobile-dark[data-appearance='light'])
+  [role='dialog']
+  :is(input, select) {
+  background-color: #f8fafd;
+  color: #20232b;
+  border-color: #9aa9bc;
+}
+body:has(.mobile-dark[data-appearance='light']) .dialog-title {
+  color: #20232b;
+}
+body:has(.mobile-dark[data-appearance='light']) .dialog-description {
+  color: #526075;
+}
+.appearance-simulator {
+  position: fixed;
+  z-index: 100;
+  bottom: 0;
+  left: 0;
+  padding: 8px 12px;
+  background: #e4edf8;
+  color: #163e60;
+  border: 1px solid #387dc5;
+  font-size: 12px;
+}
