@@ -246,7 +246,8 @@ function PhotoApp({
     );
     const visible = base.filter((p) => filter !== 'お気に入り' || p.favorite);
     const dates = [...new Set(visible.map((p) => p.date))].sort().reverse();
-    const minimalPhotos = designPreview && !album && !isTrash && !isFavorite;
+    const continuousPhotos = designPreview && !isTrash && !isFavorite;
+    const minimalPhotos = continuousPhotos && !album;
     const renderPhoto = (photo: Photo) =>
       designPreview ? (
         <SelectablePhotoTile
@@ -315,7 +316,9 @@ function PhotoApp({
     return (
       <>
         {!minimalPhotos && (
-          <div className="page-heading">
+          <div
+            className={`page-heading${continuousPhotos ? ' album-gallery-heading' : ''}`}
+          >
             <div>
               <div className="eyebrow">YOUR SHARED LIBRARY</div>
               <h1>
@@ -332,17 +335,19 @@ function PhotoApp({
                       : '何気ない毎日も、とっておきの思い出に。'}
               </p>
             </div>
-            <div className="heading-tools">
-              <span className="photo-count">{base.length}枚の写真</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={compact ? '写真を大きく表示' : '写真を小さく表示'}
-                onClick={() => setCompact(!compact)}
-              >
-                {compact ? <Grid2X2 size={20} /> : <LayoutGrid size={20} />}
-              </Button>
-            </div>
+            {!continuousPhotos && (
+              <div className="heading-tools">
+                <span className="photo-count">{base.length}枚の写真</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={compact ? '写真を大きく表示' : '写真を小さく表示'}
+                  onClick={() => setCompact(!compact)}
+                >
+                  {compact ? <Grid2X2 size={20} /> : <LayoutGrid size={20} />}
+                </Button>
+              </div>
+            )}
           </div>
         )}
         {!isTrash && !isFavorite && !album && active.length > 0 && (
@@ -395,7 +400,7 @@ function PhotoApp({
             </button>
           </div>
         )}
-        {!minimalPhotos && (
+        {!continuousPhotos && (
           <div className="gallery-toolbar">
             <div className="chip-group">
               <button
@@ -487,7 +492,7 @@ function PhotoApp({
               </Button>
             )}
           </div>
-        ) : minimalPhotos ? (
+        ) : continuousPhotos ? (
           <ContinuousPhotoGrid>
             {[...visible]
               .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))

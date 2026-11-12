@@ -53,6 +53,12 @@ test('ダークUIをスマホで操作し、アルバム・作成・詳細を確
   await expect(
     page.getByRole('heading', { name: '秋の小旅行', exact: true }),
   ).toBeVisible();
+  await expect(
+    page.locator('.date-heading, .gallery-toolbar, .heading-tools'),
+  ).toHaveCount(0);
+  await expect(page.locator('.photo-grid')).toHaveCount(1);
+  await expect(page.locator('.photo-grid > .photo-tile')).toHaveCount(8);
+  await page.screenshot({ path: '../../work/mobile-dark-album-gallery.png' });
   await nav.getByRole('button', { name: '作成', exact: true }).click();
   await page
     .getByRole('textbox', { name: 'アルバム名', exact: true })

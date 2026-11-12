@@ -532,3 +532,7 @@ body:has(.mobile-dark.photo-detail-mode) {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+
+.mobile-dark .album-gallery-heading ~ .continuous-photo-grid {
+  margin-top: 0;
+}
