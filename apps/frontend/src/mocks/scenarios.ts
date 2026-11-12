@@ -104,24 +104,6 @@ export const thumbnailPhoto: HttpResponseResolver = () =>
 
 // Review fixtures only. The production API and DB migration are a later PR.
 let membershipMode: 'normal' | 'saving' | 'error' | 'partial' = 'normal';
-export function membershipFixture(
-  next: typeof membershipMode,
-  empty = false,
-  trash = false,
-) {
-  resetStore();
-  membershipMode = next;
-  albums = empty ? [] : ['空のアルバム', '秋の小旅行', '海のある休日'];
-  const first = seed[0];
-  if (!first) throw new Error('Missing fixture');
-  photos = [
-    {
-      ...first,
-      albums: empty ? [] : ['秋の小旅行', '海のある休日'],
-      deleted: trash,
-    },
-  ];
-}
 const changeMembership: HttpResponseResolver = async ({ request, params }) => {
   await delay(membershipMode === 'saving' ? 60000 : 180);
   if (
@@ -155,17 +137,6 @@ const changeMembership: HttpResponseResolver = async ({ request, params }) => {
 };
 export const addPhotoAlbum = changeMembership;
 export const removePhotoAlbum = changeMembership;
-
-export function manyAlbumsFixture() {
-  membershipFixture('normal');
-  albums = Array.from(
-    { length: 120 },
-    (_, i) => `思い出アルバム${String(i + 1).padStart(3, '0')}`,
-  );
-  albums.push('とても長いアルバム名'.repeat(8));
-  const first = photos[0];
-  if (first) first.albums = albums.slice(0, 8);
-}
 
 let bulkMode: 'normal' | 'saving' | 'error' | 'unknown' | 'refresh' = 'normal';
 let bulkCommitted = false;
@@ -240,11 +211,6 @@ let uploadMode:
   | 'multiple'
   | 'unsupported'
   | 'busy' = 'normal';
-export function uploadFixture(next: typeof uploadMode = 'normal') {
-  resetStore();
-  uploadMode = next;
-}
-
 // Issue #26仕様レビュー用。実DBのトランザクション・ロック検証の代替ではない。
 let trashMode:
   'normal' | 'saving' | 'error' | 'unknown' | 'refresh' | 'missing' = 'normal';
