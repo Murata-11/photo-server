@@ -1695,3 +1695,49 @@ h1 {
     top: 8px;
   }
 }
+
+.desktop-preview-stage {
+  min-height: 100vh;
+  padding: 32px 20px;
+  background: #e9edf4;
+  color: #20232b;
+}
+.desktop-preview-heading,
+.desktop-preview-note {
+  max-width: 1440px;
+  margin: 0 auto 24px;
+}
+.desktop-preview-heading span {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: #5c708a;
+}
+.desktop-preview-heading h1 {
+  margin: 8px 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+.desktop-preview-heading p,
+.desktop-preview-note {
+  font-size: 13px;
+  color: #5c708a;
+}
+.desktop-preview-canvas {
+  max-width: 1440px;
+  margin: 0 auto 20px;
+  overflow: hidden;
+  border-radius: 16px;
+  box-shadow: 0 16px 48px #20232b20;
+  background: #fff;
+}
+.desktop-preview-canvas iframe {
+  width: 1440px;
+  height: 960px;
+  border: 0;
+  transform-origin: top left;
+}
+.desktop-preview-note a {
+  margin-left: 12px;
+  color: #2563eb;
+  text-decoration: underline;
+}

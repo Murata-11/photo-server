@@ -25,6 +25,7 @@ test('48MP JPEGを追加・閲覧して元バイトを取得しHEIFは拒否す�
   await expect(tile).toBeVisible();
   await page.reload();
   await tile.click();
+  await page.getByRole('button', { name: '写真に保存', exact: true }).click();
   const downloaded = page.waitForEvent('download');
   await page.getByRole('link', { name: 'ダウンロード' }).click();
   const download = await downloaded;

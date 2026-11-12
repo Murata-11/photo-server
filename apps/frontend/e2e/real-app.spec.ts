@@ -86,6 +86,25 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
   await expect(
     page.getByText('お気に入りに追加しました', { exact: true }),
   ).toBeVisible();
+  await page.getByRole('button', { name: '写真に保存', exact: true }).click();
+  const previewResponse = page
+    .context()
+    .waitForEvent(
+      'response',
+      (response) =>
+        response.url().includes('disposition=inline') &&
+        response.request().isNavigationRequest(),
+    );
+  const opened = page.waitForEvent('popup');
+  await page.getByRole('link', { name: '元画像をプレビュー' }).click();
+  const preview = await opened;
+  const response = await previewResponse;
+  expect(response.status()).toBe(200);
+  expect(response.headers()['content-disposition']).toMatch(/^inline;/);
+  expect(response.headers()['content-type']).toBe('image/jpeg');
+  expect(await response.body()).toEqual(source);
+  await expect(preview.locator('img')).toBeVisible();
+  await preview.close();
   const downloaded = page.waitForEvent('download');
   await page.getByRole('link', { name: 'ダウンロード' }).click();
   const download = await downloaded;
@@ -93,6 +112,7 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
   expect(path).toBeTruthy();
   if (path) expect(await readFile(path)).toEqual(source);
   expect(download.suggestedFilename()).toBe(filename);
+  await page.getByRole('button', { name: '閉じる', exact: true }).click();
   await page.getByRole('button', { name: '戻る', exact: true }).click();
   await page
     .getByRole('link', { name: 'アルバム', exact: true })

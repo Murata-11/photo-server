@@ -2,12 +2,14 @@ import { test, expect } from '@playwright/test';
 const id = 'スマートフォン-iphone-16--playground';
 const url = `/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`;
 
-test('StorybookにはiPhoneプレビュー1件だけが掲載される', async ({
+test('StorybookにはiPhoneとPCの操作プレビューが掲載される', async ({
   page,
   request,
 }) => {
   const index = await (await request.get('/index.json')).json();
-  expect(Object.keys(index.entries)).toEqual([id]);
+  expect(Object.keys(index.entries).sort()).toEqual(
+    [id, 'pc-デスクトップ--playground'].sort(),
+  );
   await page.setViewportSize({ width: 1440, height: 1200 });
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto(`/?path=/story/${encodeURIComponent(id)}`);
@@ -41,6 +43,7 @@ for (const width of [1440, 393, 320]) {
     await page.goto(url);
     const phone = page.frameLocator('iframe[title="iPhone 16の写真アプリ"]');
     const shell = phone.locator('.app-shell');
+    await expect(shell).toBeVisible({ timeout: 20000 });
     await expect(shell).toHaveAttribute('data-appearance', 'dark');
     await phone.getByRole('button', { name: 'アカウントメニュー' }).click();
     await phone.getByRole('radio', { name: 'ライト', exact: true }).check();
@@ -96,6 +99,7 @@ for (const width of [1440, 393, 320]) {
   });
 }
 test('プレビューの読み込み失敗から再読み込みできる', async ({ page }) => {
+  test.setTimeout(45000);
   let blocked = true;
   await page.route('**/iframe.html?**', async (route) => {
     const target = new URL(route.request().url());
@@ -104,6 +108,9 @@ test('プレビューの読み込み失敗から再読み込みできる', async
     else await route.continue();
   });
   await page.goto(url);
+  await expect(page.getByText('プレビューを読み込んでいます…')).toBeVisible({
+    timeout: 20000,
+  });
   await expect(page.getByRole('alert')).toContainText(
     'プレビューを読み込めませんでした',
     { timeout: 20000 },
