@@ -397,11 +397,33 @@ paths:
           format: uuid
     get:
       operationId: originalPhoto
+      parameters:
+        - name: disposition
+          in: query
+          required: false
+          description: inlineは元画像をブラウザで表示する。省略時は従来どおりダウンロードする。認証と元バイト列は同一。
+          schema:
+            type: string
+            enum: [attachment, inline]
+            default: attachment
       responses:
         '200':
           description: 元バイト列。ゴミ箱内でも許可利用者は取得可能。
+          headers:
+            Content-Disposition:
+              description: dispositionに応じたinlineまたはattachmentと元ファイル名。
+              schema:
+                type: string
           content:
-            application/octet-stream:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
               schema:
                 type: string
                 format: binary
