@@ -476,16 +476,15 @@ h1 {
   background: #eff2f4;
   transition: transform 0.2s;
 }
-.photo-tile:nth-child(4n + 2) {
-  aspect-ratio: auto;
-}
 .photo-open {
   display: block;
   width: 100%;
   height: 100%;
-  position: relative;
+  position: absolute;
+  inset: 0;
 }
 .photo-open img {
+  display: block;
   height: 100%;
   width: 100%;
   object-fit: cover;
