@@ -32,3 +32,9 @@ OpenAPI `addPhotosAlbum` を実APIに実装する。既存の中間テーブル�
 ## 写真の一括ゴミ箱移動（Issue #26）
 
 OpenAPI `trashPhotos` を実APIに実装する。既存の写真行をID順に `FOR UPDATE` でロックし、全件存在を確認した同一トランザクション内で `deleted=true` にする。既移動は成功として更新を省略し、不存在・DBエラーでは全件ロールバックする。個別所属・一括アルバム追加・単一削除・復元と同じ写真行ロックで直列化し、所属・画像・メタデータ・お気に入りを変更しない。DB移行・写真ファイルの操作はない。応答喪失時は同じIDを安全に再送できる。
+
+## 外観設定（Issue #44）
+
+保存値はブラウザのlocalStorage `hiyori.appearance`。`src/appearance-bootstrap.js` が保存値・OS設定を評価し、documentの配色・color-scheme・theme-colorを更新する。ViteとStorybookの設定が同じソースをHTMLのheadへ同期スクリプトとして挿入し、アプリの初回描画前に配色を決める。Appからも冪等な初期化として読み込み、`useSyncExternalStore`で選択・適用配色・保存不可状態を購読する。React描画と初期HTMLの判定ロジックを二重管理しない。
+
+OSの変更はMediaQueryList、別タブの保存・削除・clearはlocalStorageのstorageイベントで反映する。sessionStorageや他のキーは無視する。保存不可時はメモリ内の選択を優先して保持し、写真操作は継続する。API・DB・認証・写真ファイル・依存ライブラリは変更しない。
