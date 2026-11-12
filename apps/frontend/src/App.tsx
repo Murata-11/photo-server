@@ -1,5 +1,4 @@
 import { originalPreviewUrl } from './lib/photos';
-import { SavePhotoButton } from './SavePhotoButton';
 import { SwipePhotoStage } from './SwipePhotoStage';
 import { SelectablePhotoTile } from './SelectablePhotoTile';
 import { ContinuousPhotoGrid } from './ContinuousPhotoGrid';
@@ -37,6 +36,7 @@ import {
   Check,
   ArrowLeft,
   ArrowRight,
+  Download,
   Info,
   X,
   LayoutGrid,
@@ -656,7 +656,16 @@ function PhotoApp({
                 color={photo.favorite ? '#ef6779' : 'currentColor'}
               />
             </Button>
-            <SavePhotoButton key={photo.id} photo={photo} />
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="ダウンロード"
+              asChild
+            >
+              <a href={photo.originalUrl} download={photo.name}>
+                <Download size={20} />
+              </a>
+            </Button>
             <Button
               variant="ghost"
               size="icon"

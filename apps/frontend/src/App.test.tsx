@@ -394,6 +394,11 @@ it.each([false, true])(
     const url = new URL(image.getAttribute('src') ?? '');
     expect(url.pathname).toBe(first.originalUrl);
     expect(url.searchParams.get('disposition')).toBe('inline');
+    const download = screen.getByRole('link', { name: 'ダウンロード' });
+    expect(download.getAttribute('href')).toBe(first.originalUrl);
+    expect(download.getAttribute('download')).toBe(first.name);
+    expect(download.hasAttribute('target')).toBe(false);
+    expect(screen.queryByRole('dialog')).toBeNull();
     await user.click(button('戻る'));
     expect(
       screen

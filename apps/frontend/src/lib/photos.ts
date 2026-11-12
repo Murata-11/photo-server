@@ -1,4 +1,4 @@
-// Use the same original bytes for image display and a separate browser preview.
+// Request the original bytes for in-page image display.
 export function originalPreviewUrl(originalUrl: string) {
   const url = new URL(originalUrl, window.location.href);
   url.searchParams.set('disposition', 'inline');

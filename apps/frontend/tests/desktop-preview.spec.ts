@@ -25,13 +25,10 @@ for (const width of [1600, 393]) {
       'alt',
       '湖畔の朝',
     );
-    await frame
-      .getByRole('button', { name: '写真に保存', exact: true })
-      .click();
     await expect(
-      frame.getByRole('link', { name: '元画像をプレビュー' }),
-    ).toBeVisible();
-    await frame.getByRole('button', { name: '閉じる', exact: true }).click();
+      frame.getByRole('link', { name: 'ダウンロード' }),
+    ).toHaveAttribute('download', '湖畔の朝');
+    await expect(frame.getByRole('dialog')).toHaveCount(0);
     await frame.getByRole('button', { name: '戻る', exact: true }).click();
     await page.screenshot({
       path: `../../work/desktop-preview-${width}.png`,
