@@ -5,10 +5,12 @@ import { SwipePhotoStage } from './SwipePhotoStage';
 class TestPointerEvent extends MouseEvent {
   pointerId: number;
   isPrimary: boolean;
+  pointerType: string;
   constructor(type: string, init: PointerEventInit) {
     super(type, init);
     this.pointerId = init.pointerId ?? 1;
     this.isPrimary = init.isPrimary ?? true;
+    this.pointerType = init.pointerType ?? 'mouse';
   }
 }
 beforeEach(() => vi.stubGlobal('PointerEvent', TestPointerEvent));
@@ -120,4 +122,41 @@ it('EnterとSpaceで矢印を表示・非表示にできる', () => {
   expect(screen.getAllByRole('button')).toHaveLength(2);
   fireEvent.keyDown(stage, { key: ' ' });
   expect(screen.queryByRole('button')).toBeNull();
+});
+
+it('画像の長押しメニューを妨げず、解放時に移動や矢印切替を行わない', () => {
+  const onNext = vi.fn(),
+    onArrowsChange = vi.fn();
+  render(
+    <SwipePhotoStage
+      src="original.jpg"
+      name="元画像"
+      onNext={onNext}
+      onArrowsChange={onArrowsChange}
+    />,
+  );
+  const stage = screen.getByRole('group');
+  const capture = vi.fn();
+  Object.defineProperty(stage, 'setPointerCapture', { value: capture });
+  const image = screen.getByRole('img');
+  fireEvent.pointerDown(image, {
+    button: 0,
+    pointerType: 'touch',
+    clientX: 200,
+    clientY: 100,
+  });
+  expect(capture).not.toHaveBeenCalled();
+  const menu = new MouseEvent('contextmenu', {
+    bubbles: true,
+    cancelable: true,
+  });
+  fireEvent(image, menu);
+  expect(menu.defaultPrevented).toBe(false);
+  fireEvent.pointerUp(image, {
+    pointerType: 'touch',
+    clientX: 0,
+    clientY: 100,
+  });
+  expect(onNext).not.toHaveBeenCalled();
+  expect(onArrowsChange).not.toHaveBeenCalled();
 });

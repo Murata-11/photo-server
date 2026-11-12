@@ -174,6 +174,60 @@ describe('authenticated photo application with real PostgreSQL and files', () =>
     }>('SELECT metadata FROM photos WHERE id=$1', [photo.id]);
     expect(metadata.rows[0]?.metadata.takenAtLocal).toBe('2026-10-20T13:14:15');
   });
+  it.each(['jpeg', 'png', 'webp'] as const)(
+    'previews original %s inline with the same bytes and authorization',
+    async (format) => {
+      const original = await sharp(bytes).toFormat(format).toBuffer();
+      const type = `image/${format}`;
+      const uploaded = await upload(original, type, `旅行.${format}`);
+      expect(uploaded.status).toBe(200);
+      const photo = (await uploaded.json()) as {
+        id: string;
+        originalUrl: string;
+      };
+      const url = photo.originalUrl + '?disposition=inline';
+      for (const user of users) {
+        const preview = await request(url, 'GET', undefined, user);
+        expect(preview.status).toBe(200);
+        expect(preview.headers.get('content-type')).toBe(type);
+        expect(preview.headers.get('content-disposition')).toMatch(/^inline;/);
+        expect(preview.headers.get('content-disposition')).toContain(
+          'filename*=UTF-8',
+        );
+        expect(preview.headers.get('cache-control')).toBe('private, no-store');
+        expect(preview.headers.get('x-content-type-options')).toBe('nosniff');
+        expect(Buffer.from(await preview.arrayBuffer())).toEqual(original);
+      }
+      expect((await request(url, 'GET', undefined, null)).status).toBe(401);
+      expect(
+        (await request(url, 'GET', undefined, 'unknown@example.test')).status,
+      ).toBe(403);
+      const download = await request(photo.originalUrl);
+      expect(download.headers.get('content-disposition')).toMatch(
+        /^attachment;/,
+      );
+      expect(Buffer.from(await download.arrayBuffer())).toEqual(original);
+      expect(
+        (
+          await request(photo.originalUrl + '?disposition=attachment')
+        ).headers.get('content-disposition'),
+      ).toMatch(/^attachment;/);
+      for (const value of ['unknown', ''])
+        expect(
+          (await request(photo.originalUrl + '?disposition=' + value)).status,
+        ).toBe(400);
+      await request(
+        '/api/photos/' + photo.id,
+        'PATCH',
+        JSON.stringify({ deleted: true }),
+        users[0],
+        { 'Content-Type': 'application/json' },
+      );
+      expect(Buffer.from(await (await request(url)).arrayBuffer())).toEqual(
+        original,
+      );
+    },
+  );
   it('persists empty albums, favorites, membership, trash and restore for either user', async () => {
     const photo = await add();
     expect(

@@ -477,11 +477,9 @@ body:has(.mobile-dark) .dialog-description {
 
 .mobile-dark .swipe-photo-stage {
   touch-action: pinch-zoom;
-  user-select: none;
-  -webkit-user-select: none;
 }
-.mobile-dark .swipe-photo-stage img {
-  -webkit-touch-callout: none;
+.mobile-dark .detail-image {
+  -webkit-touch-callout: default;
 }
 
 html:has(.mobile-dark.photo-detail-mode),

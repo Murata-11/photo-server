@@ -361,6 +361,12 @@ export function createApp(settings: Settings) {
     app.get(`/api/photos/:id/${variant}`, async (c) => {
       const id = c.req.param('id');
       if (!uuid.test(id)) fail(400, '写真IDが不正です');
+      const disposition = c.req.query('disposition') ?? 'attachment';
+      if (
+        variant === 'original' &&
+        !['attachment', 'inline'].includes(disposition)
+      )
+        fail(400, '表示方法が不正です');
       const result = await settings.pool.query<Row>(
         'SELECT * FROM photos WHERE id=$1',
         [id],
@@ -380,7 +386,7 @@ export function createApp(settings: Settings) {
       if (variant === 'original')
         c.header(
           'Content-Disposition',
-          `attachment; filename="photo"; filename*=UTF-8''${encodeURIComponent(row.filename).replace(/['()*]/g, (ch) => '%' + ch.charCodeAt(0).toString(16))}`,
+          `${disposition}; filename="photo"; filename*=UTF-8''${encodeURIComponent(row.filename).replace(/['()*]/g, (ch) => '%' + ch.charCodeAt(0).toString(16))}`,
         );
       return c.body(bytes);
     });

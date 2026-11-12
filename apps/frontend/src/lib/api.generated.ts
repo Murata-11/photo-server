@@ -997,7 +997,10 @@ export interface operations {
   };
   originalPhoto: {
     parameters: {
-      query?: never;
+      query?: {
+        /** @description inlineは元画像をブラウザで表示する。省略時は従来どおりダウンロードする。認証と元バイト列は同一。 */
+        disposition?: 'attachment' | 'inline';
+      };
       header?: never;
       path: {
         id: string;
@@ -1009,10 +1012,14 @@ export interface operations {
       /** @description 元バイト列。ゴミ箱内でも許可利用者は取得可能。 */
       200: {
         headers: {
+          /** @description dispositionに応じたinlineまたはattachmentと元ファイル名。 */
+          'Content-Disposition'?: string;
           [name: string]: unknown;
         };
         content: {
-          'application/octet-stream': string;
+          'image/jpeg': string;
+          'image/png': string;
+          'image/webp': string;
         };
       };
       /** @description Invalid input */

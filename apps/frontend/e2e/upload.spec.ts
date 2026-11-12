@@ -25,6 +25,20 @@ test('48MP JPEGを追加・閲覧して元バイトを取得しHEIFは拒否す�
   await expect(tile).toBeVisible();
   await page.reload();
   await tile.click();
+  const detailImage = page.locator('.detail-image');
+  await expect(detailImage).toHaveAttribute(
+    'src',
+    /\/original\?disposition=inline$/,
+  );
+  await expect
+    .poll(
+      () =>
+        detailImage.evaluate(
+          (element: HTMLImageElement) => element.naturalWidth,
+        ),
+      { timeout: 15000 },
+    )
+    .toBeGreaterThan(1600);
   const downloaded = page.waitForEvent('download');
   await page.getByRole('link', { name: 'ダウンロード' }).click();
   const download = await downloaded;

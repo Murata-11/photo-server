@@ -1,3 +1,4 @@
+import { originalPreviewUrl } from './lib/photos';
 import { SwipePhotoStage } from './SwipePhotoStage';
 import { SelectablePhotoTile } from './SelectablePhotoTile';
 import { ContinuousPhotoGrid } from './ContinuousPhotoGrid';
@@ -719,7 +720,7 @@ function PhotoApp({
         </div>
         {designPreview ? (
           <SwipePhotoStage
-            src={photo.src}
+            src={originalPreviewUrl(photo.originalUrl)}
             name={photo.name}
             initialArrowsVisible={detailArrows.current}
             onArrowsChange={(visible) => {
@@ -740,7 +741,11 @@ function PhotoApp({
             >
               <ArrowLeft size={20} />
             </Button>
-            <img className="detail-image" src={photo.src} alt={photo.name} />
+            <img
+              className="detail-image"
+              src={originalPreviewUrl(photo.originalUrl)}
+              alt={photo.name}
+            />
             <Button
               className="next-photo"
               variant="outline"

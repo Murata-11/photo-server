@@ -58,7 +58,9 @@ export function SwipePhotoStage({
           y: event.clientY,
           moved: false,
         };
-        event.currentTarget.setPointerCapture?.(event.pointerId);
+        // Touch already captures implicitly on the image. Keep its native save menu.
+        if (event.pointerType !== 'touch')
+          event.currentTarget.setPointerCapture?.(event.pointerId);
       }}
       onPointerMove={(event) => {
         if (
@@ -83,6 +85,10 @@ export function SwipePhotoStage({
         if (Math.abs(dx) < 50 || Math.abs(dx) <= Math.abs(dy) * 1.5) return;
         if (dx < 0) onNext?.();
         else onPrevious?.();
+      }}
+      onContextMenu={() => {
+        // Do not cancel the native menu or treat its release as a tap/swipe.
+        start.current = null;
       }}
       onPointerCancel={() => {
         start.current = null;

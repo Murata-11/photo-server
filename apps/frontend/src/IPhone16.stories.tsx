@@ -14,7 +14,16 @@ function Preview() {
 const meta = {
   title: 'スマートフォン/iPhone 16',
   component: Preview,
-  parameters: { layout: 'fullscreen', controls: { disable: true } },
+  parameters: {
+    layout: 'fullscreen',
+    controls: { disable: true },
+    docs: {
+      description: {
+        story:
+          '一覧は表示用画像、写真詳細は元画像のimgを表示し、詳細画像の長押しメニューを許可する。ダウンロードボタンは元ファイルを直接ダウンロードする。保存方法を選ぶダイアログは表示しない。Safari固有の保存項目は実機で確認する。',
+      },
+    },
+  },
   beforeEach: () =>
     resetStore(
       'normal',
