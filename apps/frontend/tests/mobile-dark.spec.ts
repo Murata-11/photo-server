@@ -381,4 +381,54 @@ test.describe('写真詳細のスワイプ', () => {
     ).toBeVisible();
     await expect(page.locator('.info-panel')).toContainText('山へ続く道');
   });
+  test('アルバムから開いてスワイプ・矢印で進んでも元のアルバムへ戻る', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 393, height: 852 });
+    await page.goto(story('album'));
+    await page
+      .getByRole('button', { name: '湖畔の朝を開く', exact: true })
+      .tap();
+    const photo = page.locator('.detail-image');
+    await expect(photo).toHaveAttribute('alt', '湖畔の朝');
+    const originalStage = await page
+      .locator('.swipe-photo-stage')
+      .elementHandle();
+    const originalImage = await photo.elementHandle();
+    const touch = await page.context().newCDPSession(page);
+    for (const name of ['山へ続く道', '青い時間']) {
+      const bounds = await page.locator('.swipe-photo-stage').boundingBox();
+      if (!bounds) throw new Error('写真が表示されていません');
+      const x = bounds.x + bounds.width / 2,
+        y = bounds.y + bounds.height / 2;
+      await touch.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x, y }],
+      });
+      await touch.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: x - 120, y }],
+      });
+      await touch.send('Input.dispatchTouchEvent', {
+        type: 'touchEnd',
+        touchPoints: [],
+      });
+      await expect(photo).toHaveAttribute('alt', name);
+    }
+    await photo.tap();
+    await page.getByRole('button', { name: '次の写真', exact: true }).tap();
+    await expect(photo).toHaveAttribute('alt', '旅先の風景');
+    expect(await originalStage?.evaluate((node) => node.isConnected)).toBe(
+      true,
+    );
+    expect(await originalImage?.evaluate((node) => node.isConnected)).toBe(
+      true,
+    );
+    await page.getByRole('button', { name: '戻る', exact: true }).tap();
+    await expect(
+      page.getByRole('heading', { name: '秋の小旅行', exact: true }),
+    ).toBeVisible();
+    await expect(page.locator('.photo-grid > .photo-tile')).toHaveCount(8);
+    await expect(page.locator('.detail-image')).toHaveCount(0);
+  });
 });

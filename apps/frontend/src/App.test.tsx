@@ -311,3 +311,31 @@ it('写真詳細の矢印表示を写真移動中は保ち、一覧へ戻った�
   expect(await screen.findByRole('img', { name: '湖畔の朝' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: '次の写真' })).toBeNull();
 });
+
+it.each([
+  ['/', 18],
+  ['/favorites', 5],
+  ['/album/秋の小旅行', 8],
+] as const)('写真を何枚移動しても元の一覧へ戻る: %s', async (path, count) => {
+  const user = userEvent.setup();
+  render(<App designPreview initialPath={path} />);
+  await user.click(
+    await screen.findByRole('button', { name: '湖畔の朝を開く' }),
+  );
+  await screen.findByRole('img', { name: '湖畔の朝' });
+  await user.keyboard('{ArrowRight}{ArrowRight}');
+  await screen.findByRole('img', { name: '青い時間' });
+  await user.click(button('戻る'));
+  expect(document.querySelectorAll('.photo-grid > .photo-tile')).toHaveLength(
+    count,
+  );
+  if (path.startsWith('/album/'))
+    expect(screen.getByRole('heading', { name: '秋の小旅行' })).toBeTruthy();
+  if (path === '/favorites')
+    expect(screen.getByRole('heading', { name: 'お気に入り' })).toBeTruthy();
+  await user.click(button('湖畔の朝を開く'));
+  await user.keyboard('{ArrowRight}{Escape}');
+  expect(document.querySelectorAll('.photo-grid > .photo-tile')).toHaveLength(
+    count,
+  );
+});

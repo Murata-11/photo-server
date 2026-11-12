@@ -85,6 +85,20 @@ function GalleryRoute({ render }: { render: (album?: string) => ReactNode }) {
   const { name } = useParams();
   return render(name);
 }
+function PhotoDetailRoute({
+  render,
+  onKeyDown,
+}: {
+  render: (id?: string) => ReactNode;
+  onKeyDown: (event: KeyboardEvent) => void;
+}) {
+  const { id } = useParams();
+  useEffect(() => {
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onKeyDown]);
+  return render(id);
+}
 function PhotoApp({
   initialUploadOpen,
   designPreview,
@@ -119,6 +133,29 @@ function PhotoApp({
     fileInput = useRef<HTMLInputElement>(null);
   const ignoredPhotoClick = useRef<string | null>(null);
   const detailArrows = useRef(false);
+  function photoOrigin(deleted = false) {
+    const origin = (location.state as { photoOrigin?: unknown } | null)
+      ?.photoOrigin;
+    return typeof origin === 'string' &&
+      (['/', '/favorites', '/trash', '/albums'].includes(origin) ||
+        origin.startsWith('/album/'))
+      ? origin
+      : deleted
+        ? '/trash'
+        : '/';
+  }
+  function openPhoto(id: string | undefined) {
+    if (!id) return;
+    const inViewer = location.pathname.startsWith('/photo/');
+    const origin = inViewer
+      ? photoOrigin(photos.find((photo) => photo.id === id)?.deleted)
+      : location.pathname;
+    navigate('/photo/' + id, {
+      state: { photoOrigin: origin },
+      replace: inViewer,
+    });
+  }
+
   function endSelection() {
     setSelected([]);
     setSelectionMode(false);
@@ -276,7 +313,7 @@ function PhotoApp({
               ignoredPhotoClick.current = null;
               return;
             }
-            navigate('/photo/' + photo.id);
+            openPhoto(photo.id);
           }}
         />
       ) : (
@@ -287,7 +324,7 @@ function PhotoApp({
         >
           <button
             className="photo-open"
-            onClick={() => navigate('/photo/' + photo.id)}
+            onClick={() => openPhoto(photo.id)}
             aria-label={`${photo.name}を開く`}
           >
             <img loading="lazy" src={photo.src} alt={photo.name} />
@@ -354,7 +391,7 @@ function PhotoApp({
           <div className="memories">
             <button
               className="memory memory-wide"
-              onClick={() => navigate('/photo/' + active[0]?.id)}
+              onClick={() => openPhoto(active[0]?.id)}
             >
               <img src={active[0]?.src} alt={active[0]?.name} />
               <div className="memory-shade" />
@@ -529,24 +566,22 @@ function PhotoApp({
       </>
     );
   }
-  function Detail() {
-    const { id } = useParams();
+  function onPhotoKeyDown(event: KeyboardEvent) {
+    if (albumEditorOpen || event.defaultPrevented) return;
+    const id = location.pathname.slice('/photo/'.length);
+    const photo = photos.find((value) => value.id === id);
+    const siblings = photos.filter((value) => value.deleted === photo?.deleted);
+    const index = siblings.findIndex((value) => value.id === id);
+    if (event.key === 'Escape') navigate(photoOrigin(photo?.deleted));
+    if (event.key === 'ArrowRight') openPhoto(siblings[index + 1]?.id);
+    if (event.key === 'ArrowLeft') openPhoto(siblings[index - 1]?.id);
+  }
+  function renderDetail(id?: string) {
     const photo = photos.find((p) => p.id === id);
     const siblings = photos.filter((p) => p.deleted === photo?.deleted);
     const index = siblings.findIndex((p) => p.id === id);
     const previous = siblings[index - 1];
     const next = siblings[index + 1];
-    useEffect(() => {
-      function key(e: KeyboardEvent) {
-        if (albumEditorOpen || e.defaultPrevented) return;
-        if (e.key === 'Escape') navigate(photo?.deleted ? '/trash' : '/');
-        if (e.key === 'ArrowRight' && next) navigate('/photo/' + next.id);
-        if (e.key === 'ArrowLeft' && previous)
-          navigate('/photo/' + previous.id);
-      }
-      window.addEventListener('keydown', key);
-      return () => window.removeEventListener('keydown', key);
-    }, [id, index]);
     if (loading)
       return (
         <div className="empty-state">
@@ -565,7 +600,7 @@ function PhotoApp({
         <div className="detail-toolbar">
           <Button
             variant="ghost"
-            onClick={() => navigate(photo.deleted ? '/trash' : '/')}
+            onClick={() => navigate(photoOrigin(photo.deleted))}
           >
             <ArrowLeft size={20} />
             戻る
@@ -656,10 +691,8 @@ function PhotoApp({
             onArrowsChange={(visible) => {
               detailArrows.current = visible;
             }}
-            onPrevious={
-              previous ? () => navigate('/photo/' + previous.id) : undefined
-            }
-            onNext={next ? () => navigate('/photo/' + next.id) : undefined}
+            onPrevious={previous ? () => openPhoto(previous.id) : undefined}
+            onNext={next ? () => openPhoto(next.id) : undefined}
           />
         ) : (
           <div className="detail-stage">
@@ -669,7 +702,7 @@ function PhotoApp({
               size="icon"
               aria-label="前の写真"
               disabled={index === 0}
-              onClick={() => previous && navigate('/photo/' + previous.id)}
+              onClick={() => previous && openPhoto(previous.id)}
             >
               <ArrowLeft size={20} />
             </Button>
@@ -680,7 +713,7 @@ function PhotoApp({
               size="icon"
               aria-label="次の写真"
               disabled={index === siblings.length - 1}
-              onClick={() => next && navigate('/photo/' + next.id)}
+              onClick={() => next && openPhoto(next.id)}
             >
               <ArrowRight size={20} />
             </Button>
@@ -937,7 +970,15 @@ function PhotoApp({
             path="/album/:name"
             element={<GalleryRoute render={renderAlbum} />}
           />
-          <Route path="/photo/:id" element={<Detail />} />
+          <Route
+            path="/photo/:id"
+            element={
+              <PhotoDetailRoute
+                render={renderDetail}
+                onKeyDown={onPhotoKeyDown}
+              />
+            }
+          />
         </Routes>
       </main>
       {!mobileMenu && !(designPreview && selectionMode) && (
