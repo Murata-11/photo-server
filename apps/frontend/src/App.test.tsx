@@ -378,3 +378,28 @@ it('写真詳細でアカウントメニューをEscapeで閉じても一覧へ�
     'false',
   );
 });
+
+it.each([false, true])(
+  '一覧は表示用画像、詳細は元画像をimgで表示する（designPreview=%s）',
+  async (designPreview) => {
+    const first = photos[0];
+    if (!first) throw new Error('Missing fixture');
+    first.originalUrl = '/api/photos/fixture/original';
+    const user = userEvent.setup();
+    render(<App designPreview={designPreview} />);
+    const tile = await screen.findByRole('button', { name: '湖畔の朝を開く' });
+    expect(tile.querySelector('img')?.getAttribute('src')).toBe(first.src);
+    await user.click(tile);
+    const image = screen.getByRole('img', { name: first.name });
+    const url = new URL(image.getAttribute('src') ?? '');
+    expect(url.pathname).toBe(first.originalUrl);
+    expect(url.searchParams.get('disposition')).toBe('inline');
+    await user.click(button('戻る'));
+    expect(
+      screen
+        .getByRole('button', { name: '湖畔の朝を開く' })
+        .querySelector('img')
+        ?.getAttribute('src'),
+    ).toBe(first.src);
+  },
+);

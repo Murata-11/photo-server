@@ -9,6 +9,20 @@ for (const width of [1440, 393]) {
     await page
       .getByRole('button', { name: '湖畔の朝を開く', exact: true })
       .click();
+    await expect(page.locator('.detail-image')).toHaveAttribute(
+      'src',
+      /photos\/01.jpg\?disposition=inline$/,
+    );
+    expect(
+      await page.locator('.detail-image').evaluate((element) => {
+        const event = new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+        });
+        element.dispatchEvent(event);
+        return event.defaultPrevented;
+      }),
+    ).toBe(false);
     await page.getByRole('button', { name: '写真に保存', exact: true }).click();
     const dialog = page.getByRole('dialog');
     const preview = dialog.getByRole('link', { name: '元画像をプレビュー' });

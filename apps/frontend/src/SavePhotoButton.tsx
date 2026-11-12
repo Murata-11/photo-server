@@ -1,3 +1,4 @@
+import { originalPreviewUrl } from './lib/photos';
 import { useState } from 'react';
 import { Download } from 'lucide-react';
 import { Button } from './components/ui/button';
@@ -12,8 +13,7 @@ type Photo = { name: string; originalUrl: string };
 
 export function SavePhotoButton({ photo }: { photo: Photo }) {
   const [open, setOpen] = useState(false);
-  const previewUrl = new URL(photo.originalUrl, window.location.href);
-  previewUrl.searchParams.set('disposition', 'inline');
+  const previewUrl = originalPreviewUrl(photo.originalUrl);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <Button
@@ -30,14 +30,14 @@ export function SavePhotoButton({ photo }: { photo: Photo }) {
           写真に保存
         </DialogTitle>
         <DialogDescription className="dialog-description">
-          元画像を新しいタブでプレビューします。iPhoneではSafariの共有ボタン、または画像を長押しして保存してください。
+          詳細画面の画像は元画像です。iPhoneでは画像を長押しして保存をお試しください。別タブで開く場合は「元画像をプレビュー」からSafariの共有ボタンや画像の長押しをお試しください。
         </DialogDescription>
         <p className="my-4 text-sm">
           保存項目が出ない場合はダウンロードをご利用ください。PCではダウンロード、またはプレビューした画像の右クリックから保存できます。
         </p>
         <div className="flex flex-wrap gap-3">
           <Button asChild>
-            <a href={previewUrl.href} target="_blank" rel="noopener noreferrer">
+            <a href={previewUrl} target="_blank" rel="noopener noreferrer">
               元画像をプレビュー
             </a>
           </Button>

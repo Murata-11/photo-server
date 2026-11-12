@@ -14,7 +14,16 @@ function Preview() {
 const meta = {
   title: 'PC/デスクトップ',
   component: Preview,
-  parameters: { layout: 'fullscreen', controls: { disable: true } },
+  parameters: {
+    layout: 'fullscreen',
+    controls: { disable: true },
+    docs: {
+      description: {
+        story:
+          '一覧は表示用画像、写真詳細は元画像のimgを表示する。画像の右クリック・長押しの標準メニューを許可し、保存メニューから別タブの元画像プレビューとダウンロードも選べる。',
+      },
+    },
+  },
   beforeEach: () =>
     resetStore(
       'normal',

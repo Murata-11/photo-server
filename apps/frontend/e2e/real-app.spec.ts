@@ -51,6 +51,7 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
     exact: true,
   });
   await expect(tile).toBeVisible();
+  await expect(tile.locator('img')).toHaveAttribute('src', /\/thumbnail$/);
   await page.reload();
   await expectNoSearchLayout(page);
   await expect(tile).toBeVisible();
@@ -80,6 +81,29 @@ test('実APIで追加・共有状態・アルバム・再読込・元ファイ�
   await page.getByRole('button', { name: '選択解除' }).click();
   await tile.click();
   await expectNoSearchLayout(page);
+  const detailImage = page.locator('.detail-image');
+  await expect(detailImage).toHaveAttribute(
+    'src',
+    /\/original\?disposition=inline$/,
+  );
+  await expect
+    .poll(() =>
+      detailImage.evaluate(
+        (element: HTMLImageElement) =>
+          element.complete && element.naturalWidth > 0,
+      ),
+    )
+    .toBe(true);
+  expect(
+    await detailImage.evaluate((element) => {
+      const event = new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(event);
+      return event.defaultPrevented;
+    }),
+  ).toBe(false);
   await page
     .getByRole('button', { name: 'お気に入りを切り替え', exact: true })
     .click();
