@@ -63,7 +63,10 @@ test('実APIの一括ゴミ箱はキャンセル・応答喪失の再送・表�
   await page.goto('/');
   await albumsPage();
   await card(album).click();
-  for (const photo of [a, b])
+  await page
+    .getByRole('button', { name: `${a.name}を開く`, exact: true })
+    .press('Shift+Enter');
+  for (const photo of [b])
     await page
       .getByRole('button', { name: `${photo.name}を選択`, exact: true })
       .click();
@@ -71,7 +74,7 @@ test('実APIの一括ゴミ箱はキャンセル・応答喪失の再送・表�
     name: 'ゴミ箱に移動',
     exact: true,
   });
-  await expect(trigger).toHaveText('');
+  await expect(trigger).toContainText('ゴミ箱に移動');
   await page.screenshot({
     path: `../../work/issue26-real-selection-${info.project.name}.png`,
   });
@@ -79,7 +82,7 @@ test('実APIの一括ゴミ箱はキャンセル・応答喪失の再送・表�
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByText(/所属解除ではありません/)).toBeVisible();
   await dialog.getByRole('button', { name: 'キャンセル', exact: true }).click();
-  await expect(page.getByText('2枚を選択中')).toBeVisible();
+  await expect(page.getByRole('status', { name: '2枚を選択中' })).toBeVisible();
   expect(await list()).toEqual(before);
   await trigger.click();
   let puts = 0;
@@ -125,15 +128,17 @@ test('実APIの一括ゴミ箱はキャンセル・応答喪失の再送・表�
   await expect(card(album).locator('img')).toHaveAttribute('src', c.src);
   await expect(card(other)).toContainText('0枚の写真');
   await page.reload();
-  if (info.project.name === 'iphone16')
-    await page.getByRole('button', { name: 'メニュー', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'アカウントメニュー', exact: true })
+    .click();
   await page.getByRole('link', { name: 'ゴミ箱', exact: true }).click();
   await page
-    .getByRole('button', { name: `${a.name}を選択`, exact: true })
-    .click();
+    .getByRole('button', { name: `${a.name}を開く`, exact: true })
+    .press('Shift+Enter');
   await expect(
     page.getByRole('button', { name: 'ゴミ箱に移動', exact: true }),
   ).toHaveCount(0);
+  await page.getByRole('button', { name: '選択解除' }).click();
   await page
     .getByRole('button', { name: `${a.name}を開く`, exact: true })
     .click();
@@ -143,8 +148,8 @@ test('実APIの一括ゴミ箱はキャンセル・応答喪失の再送・表�
   await expect(card(other)).toContainText('1枚の写真');
   await card(other).click();
   await page
-    .getByRole('button', { name: `${a.name}を選択`, exact: true })
-    .click();
+    .getByRole('button', { name: `${a.name}を開く`, exact: true })
+    .press('Shift+Enter');
   await trigger.click();
   // Saving succeeds; lose only the next list response, then retry reads alone.
   await page.route(

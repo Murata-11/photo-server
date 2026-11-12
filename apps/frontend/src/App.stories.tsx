@@ -6,7 +6,7 @@ const meta = {
   component: App,
   parameters: { layout: 'fullscreen' },
   beforeEach: () => resetStore(),
-  args: { initialPath: '/' },
+  args: { designPreview: false, initialPath: '/' },
 } satisfies Meta<typeof App>;
 export default meta;
 type Story = StoryObj<typeof meta>;

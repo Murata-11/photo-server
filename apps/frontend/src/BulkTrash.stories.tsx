@@ -5,6 +5,7 @@ import { trashFixture } from './mocks/scenarios';
 const meta = {
   title: 'Issue 26/写真の一括ゴミ箱移動',
   component: App,
+  args: { designPreview: false },
   parameters: { layout: 'fullscreen' },
   beforeEach: () => trashFixture(),
 } satisfies Meta<typeof App>;

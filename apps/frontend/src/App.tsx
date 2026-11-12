@@ -65,7 +65,7 @@ const navigation = [
 export function App({
   initialPath = '/',
   initialUploadOpen = false,
-  designPreview = false,
+  designPreview = true,
 }: {
   initialPath?: string;
   initialUploadOpen?: boolean;
@@ -123,6 +123,7 @@ function PhotoApp({
     [bulkAlbumOpen, setBulkAlbumOpen] = useState(false),
     [bulkTrashOpen, setBulkTrashOpen] = useState(false),
     [mobileMenu, setMobileMenu] = useState(false),
+    [accountOpen, setAccountOpen] = useState(false),
     [filter, setFilter] = useState('すべて'),
     [showInfo, setShowInfo] = useState(false),
     [displayName, setDisplayName] = useState(''),
@@ -133,6 +134,30 @@ function PhotoApp({
     fileInput = useRef<HTMLInputElement>(null);
   const ignoredPhotoClick = useRef<string | null>(null);
   const detailArrows = useRef(false);
+  const accountMenu = useRef<HTMLDivElement>(null);
+  useEffect(() => setAccountOpen(false), [location.pathname]);
+  useEffect(() => {
+    if (!accountOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!accountMenu.current?.contains(event.target as Node))
+        setAccountOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setAccountOpen(false);
+        accountMenu.current
+          ?.querySelector<HTMLButtonElement>('button')
+          ?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [accountOpen]);
   function photoOrigin(deleted = false) {
     const origin = (location.state as { photoOrigin?: unknown } | null)
       ?.photoOrigin;
@@ -283,8 +308,8 @@ function PhotoApp({
     );
     const visible = base.filter((p) => filter !== 'お気に入り' || p.favorite);
     const dates = [...new Set(visible.map((p) => p.date))].sort().reverse();
-    const continuousPhotos = designPreview && !isTrash && !isFavorite;
-    const minimalPhotos = continuousPhotos && !album;
+    const continuousPhotos = designPreview;
+    const minimalPhotos = continuousPhotos && !album && !isTrash && !isFavorite;
     const renderPhoto = (photo: Photo) =>
       designPreview ? (
         <SelectablePhotoTile
@@ -818,18 +843,43 @@ function PhotoApp({
             <span />
             ふたりだけのスペース
           </span>
-          <button
-            className="avatar"
-            aria-label="共有スペースの情報"
-            onClick={() =>
-              toast.info(
-                displayName +
-                  'として接続しています。ふたりの共有ライブラリです。',
-              )
-            }
-          >
-            H
-          </button>
+          {designPreview ? (
+            <div className="account-menu-container" ref={accountMenu}>
+              <button
+                className="avatar"
+                aria-label="アカウントメニュー"
+                aria-expanded={accountOpen}
+                aria-controls="account-navigation"
+                onClick={() => setAccountOpen((open) => !open)}
+              >
+                H
+              </button>
+              {accountOpen && (
+                <nav
+                  id="account-navigation"
+                  className="account-navigation"
+                  aria-label="ライブラリのその他の画面"
+                >
+                  <p>{displayName}</p>
+                  <NavLink to="/favorites">お気に入り</NavLink>
+                  <NavLink to="/trash">ゴミ箱</NavLink>
+                </nav>
+              )}
+            </div>
+          ) : (
+            <button
+              className="avatar"
+              aria-label="共有スペースの情報"
+              onClick={() =>
+                toast.info(
+                  displayName +
+                    'として接続しています。ふたりの共有ライブラリです。',
+                )
+              }
+            >
+              H
+            </button>
+          )}
         </div>
       </header>
       {!designPreview && mobileMenu && (
@@ -1018,24 +1068,28 @@ function PhotoApp({
         <section className="selection-panel" aria-label="選択した写真の操作">
           <span className="selection-panel-handle" aria-hidden="true" />
           <div className="selection-panel-actions">
-            <button
-              disabled={!selected.length || isTrash}
-              onClick={() => setBulkAlbumOpen(true)}
-            >
-              <FolderHeart size={24} />
-              <span>アルバムに追加</span>
-            </button>
+            {!isTrash && (
+              <button
+                disabled={!selected.length}
+                onClick={() => setBulkAlbumOpen(true)}
+              >
+                <FolderHeart size={24} />
+                <span>アルバムに追加</span>
+              </button>
+            )}
             <button disabled={!selected.length} onClick={favoriteSelected}>
               <Heart size={24} />
               <span>お気に入り</span>
             </button>
-            <button
-              disabled={!selected.length || isTrash}
-              onClick={() => setBulkTrashOpen(true)}
-            >
-              <Trash2 size={24} />
-              <span>ゴミ箱に移動</span>
-            </button>
+            {!isTrash && (
+              <button
+                disabled={!selected.length}
+                onClick={() => setBulkTrashOpen(true)}
+              >
+                <Trash2 size={24} />
+                <span>ゴミ箱に移動</span>
+              </button>
+            )}
           </div>
         </section>
       )}

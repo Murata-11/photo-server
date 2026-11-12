@@ -48,7 +48,7 @@ pnpm build-storybook
 pnpm generate:ui-api
 ```
 
-Storybookの「アプリ / ひより」「スマートフォン / iPhone 16」で同じAppをMSWに接続して操作できます。Storybookのデータは架空のフィクスチャで、実写真を配置しません。通常起動ではサンプル写真を一覧に混ぜません。
+Storybookの「アプリ / モバイルダーク」で通常起動と同じAppをMSWに接続して操作できます。「アプリ / ひより」と過去IssueのStoryは旧レイアウトの回帰確認用です。Storybookのデータは架空のフィクスチャで、実写真を配置しません。通常起動ではサンプル写真を一覧に混ぜません。
 
 HTTP契約の正は[api/openapi.yaml](../api/openapi.yaml)。型・クライアント・MSWルートはOpenAPIから固定バージョンで生成し、直接編集しません。再生成後に差分がないことを確認します。[レビュー用Pages](review-pages.md)はStorybookとSwagger UIだけを公開し、バックエンド・写真保存領域・DBは配信しません。
 

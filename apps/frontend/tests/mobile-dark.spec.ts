@@ -432,3 +432,27 @@ test.describe('写真詳細のスワイプ', () => {
     await expect(page.locator('.detail-image')).toHaveCount(0);
   });
 });
+
+test('アカウントメニューからお気に入りとゴミ箱を開ける', async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 852 });
+  await page.goto(story());
+  const menu = page.getByRole('button', { name: 'アカウントメニュー' });
+  await menu.click();
+  await expect(menu).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeFocused();
+  await expect(menu).toHaveAttribute('aria-expanded', 'false');
+  await menu.click();
+  await page.getByRole('link', { name: 'お気に入り', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'お気に入り', exact: true }),
+  ).toBeVisible();
+  await expect(menu).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('.date-heading')).toHaveCount(0);
+  await menu.click();
+  await page.getByRole('link', { name: 'ゴミ箱', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'ゴミ箱', exact: true }),
+  ).toBeVisible();
+  await expect(menu).toHaveAttribute('aria-expanded', 'false');
+});

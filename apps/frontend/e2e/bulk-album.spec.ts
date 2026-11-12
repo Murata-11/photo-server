@@ -57,7 +57,10 @@ test('実APIで一括追加・競合失敗・応答喪失・再取得失敗か�
       ).status(),
     ).toBe(200);
   const select = async () => {
-    for (const photo of photos)
+    await page
+      .getByRole('button', { name: first.name + 'を開く', exact: true })
+      .press('Shift+Enter');
+    for (const photo of photos.slice(1))
       await page
         .getByRole('button', { name: photo.name + 'を選択', exact: true })
         .click();
@@ -72,7 +75,7 @@ test('実APIで一括追加・競合失敗・応答喪失・再取得失敗か�
   );
   await select();
   await page.keyboard.press('Escape');
-  await expect(page.getByText('2枚を選択中')).toBeVisible();
+  await expect(page.getByRole('status', { name: '2枚を選択中' })).toBeVisible();
   expect((await list()).find((p) => p.id === first.id)?.albums).toEqual([
     other,
   ]);
@@ -140,7 +143,9 @@ test('実APIで一括追加・競合失敗・応答喪失・再取得失敗か�
     { times: 1 },
   );
   await page.getByRole('button', { name: '追加', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('追加しています');
+  await expect(page.getByRole('dialog').getByRole('status')).toContainText(
+    '追加しています',
+  );
   await expect(
     page.getByRole('button', { name: '追加', exact: true }),
   ).toBeDisabled();
@@ -185,6 +190,29 @@ test('実APIで一括追加・競合失敗・応答喪失・再取得失敗か�
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
+  await page.getByRole('link', { name: 'アルバム', exact: true }).click();
+  await card.click();
+  await page
+    .getByRole('button', { name: second.name + 'を開く', exact: true })
+    .click();
+  const stage = page.locator('.swipe-photo-stage');
+  const box = await stage.boundingBox();
+  if (!box) throw new Error('Missing viewer');
+  const beforeSwipe = await stage.locator('img').getAttribute('src');
+  await page.mouse.move(box.x + box.width * 0.8, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2, {
+    steps: 8,
+  });
+  await page.mouse.up();
+  await expect(stage.locator('img')).not.toHaveAttribute(
+    'src',
+    beforeSwipe ?? '',
+  );
+  await page.getByRole('button', { name: '戻る', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: album, exact: true }),
+  ).toBeVisible();
   await page.screenshot({
     path: `../../work/issue22-${info.project.name}.png`,
     fullPage: true,

@@ -48,7 +48,7 @@ afterEach(() => {
 });
 const button = (name: string) => screen.getByRole('button', { name });
 async function loaded(path = '/') {
-  render(<App initialPath={path} />);
+  render(<App designPreview={false} initialPath={path} />);
   await waitFor(() => expect(api.list).toHaveBeenCalled());
   await screen.findByRole('button', { name: '湖畔の朝を開く' });
 }
@@ -99,7 +99,7 @@ describe('photo application interactions', () => {
   });
   it('creates durable empty albums and handles duplicate and API failure', async () => {
     const user = userEvent.setup();
-    render(<App initialPath="/albums" />);
+    render(<App designPreview={false} initialPath="/albums" />);
     await screen.findByRole('button', { name: 'アルバムを作成' });
     await user.click(button('アルバムを作成'));
     const input = screen.getByRole('textbox', { name: 'アルバム名' });
@@ -169,7 +169,7 @@ describe('photo application interactions', () => {
   it('shows empty, favorite, missing photo and API errors with retry', async () => {
     vi.mocked(api.list).mockRejectedValueOnce(new Error('読み込みエラー'));
     const user = userEvent.setup();
-    render(<App />);
+    render(<App designPreview={false} />);
     expect(await screen.findByText('読み込みエラー')).toBeTruthy();
     await user.click(button('もう一度試す'));
     await screen.findByRole('button', { name: '湖畔の朝を開く' });
@@ -184,12 +184,12 @@ describe('photo application interactions', () => {
     await waitFor(() => expect(api.update).toHaveBeenCalled());
     cleanup();
     vi.mocked(api.list).mockResolvedValue([]);
-    render(<App />);
+    render(<App designPreview={false} />);
     expect(
       await screen.findByRole('heading', { name: 'まだ写真がありません' }),
     ).toBeTruthy();
     cleanup();
-    render(<App initialPath="/photo/missing" />);
+    render(<App designPreview={false} initialPath="/photo/missing" />);
     expect(
       await screen.findByRole('heading', { name: '写真が見つかりません' }),
     ).toBeTruthy();
@@ -229,7 +229,7 @@ it('一括移動で対象だけを除き再取得失敗から更新のみ再試�
 
 it('ダークUIはキーボードから複数選択し、0枚・終了・お気に入り保存を扱う', async () => {
   const user = userEvent.setup();
-  render(<App designPreview />);
+  render(<App />);
   const first = await screen.findByRole('button', { name: '湖畔の朝を開く' });
   expect(document.querySelector('.photo-select')).toBeNull();
   first.focus();
@@ -253,7 +253,7 @@ it('ダークUIはキーボードから複数選択し、0枚・終了・お気�
 it('ダークUIで選択を解除し、選択した写真を既存アルバムへ追加する', async () => {
   const user = userEvent.setup();
   vi.mocked(api.addPhotosAlbum).mockResolvedValue(undefined);
-  render(<App designPreview />);
+  render(<App />);
   const first = await screen.findByRole('button', { name: '湖畔の朝を開く' });
   first.focus();
   await user.keyboard('{Shift>}{Enter}{/Shift}');
@@ -276,7 +276,7 @@ it.each(['/', '/album/秋の小旅行'])(
   '選択中も写真DOMを維持し、一覧を再取得しない: %s',
   async (path) => {
     const user = userEvent.setup();
-    render(<App designPreview initialPath={path} />);
+    render(<App initialPath={path} />);
     const first = await screen.findByRole('button', { name: '湖畔の朝を開く' });
     const original = Array.from(document.querySelectorAll('.photo-open img'));
     const calls = vi.mocked(api.list).mock.calls.length;
@@ -296,7 +296,7 @@ it.each(['/', '/album/秋の小旅行'])(
 
 it('写真詳細の矢印表示を写真移動中は保ち、一覧へ戻ったらリセットする', async () => {
   const user = userEvent.setup();
-  render(<App designPreview initialPath="/photo/1" />);
+  render(<App initialPath="/photo/1" />);
   const image = await screen.findByRole('img', { name: '湖畔の朝' });
   screen.getByRole('group', { name: /写真ビューアー/ }).focus();
   await user.keyboard('{Enter}');
@@ -318,7 +318,7 @@ it.each([
   ['/album/秋の小旅行', 8],
 ] as const)('写真を何枚移動しても元の一覧へ戻る: %s', async (path, count) => {
   const user = userEvent.setup();
-  render(<App designPreview initialPath={path} />);
+  render(<App initialPath={path} />);
   await user.click(
     await screen.findByRole('button', { name: '湖畔の朝を開く' }),
   );
@@ -337,5 +337,44 @@ it.each([
   await user.keyboard('{ArrowRight}{Escape}');
   expect(document.querySelectorAll('.photo-grid > .photo-tile')).toHaveLength(
     count,
+  );
+});
+
+it('通常起動のアカウントメニューからお気に入り・ゴミ箱を開き、Escapeと外側クリックで閉じる', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole('button', { name: '湖畔の朝を開く' });
+  expect(
+    document.querySelector('.app-shell')?.classList.contains('mobile-dark'),
+  ).toBe(true);
+  expect(document.querySelector('#library-menu')).toBeNull();
+  const menu = button('アカウントメニュー');
+  await user.click(menu);
+  expect(menu.getAttribute('aria-expanded')).toBe('true');
+  await user.keyboard('{Escape}');
+  expect(document.activeElement).toBe(menu);
+  expect(menu.getAttribute('aria-expanded')).toBe('false');
+  await user.click(menu);
+  await user.click(document.body);
+  expect(menu.getAttribute('aria-expanded')).toBe('false');
+  await user.click(menu);
+  await user.click(screen.getByRole('link', { name: 'お気に入り' }));
+  await screen.findByRole('heading', { name: 'お気に入り' });
+  expect(menu.getAttribute('aria-expanded')).toBe('false');
+  await user.click(menu);
+  await user.click(screen.getByRole('link', { name: 'ゴミ箱' }));
+  await screen.findByRole('heading', { name: 'ゴミ箱' });
+  expect(menu.getAttribute('aria-expanded')).toBe('false');
+});
+
+it('写真詳細でアカウントメニューをEscapeで閉じても一覧へ戻らない', async () => {
+  const user = userEvent.setup();
+  render(<App initialPath="/photo/1" />);
+  await screen.findByRole('img', { name: '湖畔の朝' });
+  await user.click(button('アカウントメニュー'));
+  await user.keyboard('{Escape}');
+  expect(screen.getByRole('img', { name: '湖畔の朝' })).toBeTruthy();
+  expect(button('アカウントメニュー').getAttribute('aria-expanded')).toBe(
+    'false',
   );
 });

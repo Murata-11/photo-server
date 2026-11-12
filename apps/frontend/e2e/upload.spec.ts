@@ -11,10 +11,7 @@ test('48MP JPEGを追加・閲覧して元バイトを取得しHEIFは拒否す�
   const add = () =>
     page
       .getByRole('button', {
-        name:
-          info.project.name === 'iphone16'
-            ? '写真をアップロード'
-            : '写真を追加',
+        name: '写真をアップロード',
         exact: true,
       })
       .first()
