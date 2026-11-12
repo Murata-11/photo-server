@@ -4,7 +4,13 @@ import { BulkTrashDialog } from './BulkTrashDialog';
 import './mobile-dark.css';
 import { BulkAlbumDialog } from './BulkAlbumDialog';
 import { AlbumEditor } from './AlbumEditor';
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from 'react';
 import {
   MemoryRouter,
   NavLink,
@@ -72,6 +78,11 @@ export function App({
       />
     </MemoryRouter>
   );
+}
+// A stable route component preserves the photo DOM when selection state changes.
+function GalleryRoute({ render }: { render: (album?: string) => ReactNode }) {
+  const { name } = useParams();
+  return render(name);
 }
 function PhotoApp({
   initialUploadOpen,
@@ -222,7 +233,7 @@ function PhotoApp({
       : isAlbums
         ? 'アルバム'
         : 'フォト';
-  function Gallery({ album }: { album?: string }) {
+  function renderGallery(album?: string) {
     const base = photos.filter((p) =>
       isTrash
         ? p.deleted
@@ -686,15 +697,14 @@ function PhotoApp({
       </div>
     );
   }
-  function Album() {
-    const { name } = useParams();
+  function renderAlbum(name?: string) {
     return (
       <>
         <button className="back-link" onClick={() => navigate('/albums')}>
           <ArrowLeft size={16} />
           アルバムに戻る
         </button>
-        <Gallery album={name} />
+        {renderGallery(name)}
       </>
     );
   }
@@ -823,9 +833,15 @@ function PhotoApp({
       </aside>
       <main className="main-content">
         <Routes>
-          <Route path="/" element={<Gallery />} />
-          <Route path="/favorites" element={<Gallery />} />
-          <Route path="/trash" element={<Gallery />} />
+          <Route path="/" element={<GalleryRoute render={renderGallery} />} />
+          <Route
+            path="/favorites"
+            element={<GalleryRoute render={renderGallery} />}
+          />
+          <Route
+            path="/trash"
+            element={<GalleryRoute render={renderGallery} />}
+          />
           <Route
             path="/albums"
             element={
@@ -884,7 +900,10 @@ function PhotoApp({
               </>
             }
           />
-          <Route path="/album/:name" element={<Album />} />
+          <Route
+            path="/album/:name"
+            element={<GalleryRoute render={renderAlbum} />}
+          />
           <Route path="/photo/:id" element={<Detail />} />
         </Routes>
       </main>

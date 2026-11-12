@@ -165,6 +165,17 @@ test.describe('長押し選択', () => {
     await expect(first).toBeVisible();
     await expect(page.locator('.photo-select')).toHaveCount(0);
     await first.scrollIntoViewIfNeeded();
+    const originalImages = await page
+      .locator('.photo-open img')
+      .elementHandles();
+    const reads: string[] = [];
+    page.on('request', (request) => {
+      if (
+        request.method() === 'GET' &&
+        new URL(request.url()).pathname.endsWith('/api/photos')
+      )
+        reads.push(request.url());
+    });
     const bounds = await first.boundingBox();
     if (!bounds) throw new Error('写真が表示されていません');
     const touch = await page.context().newCDPSession(page);
@@ -194,6 +205,14 @@ test.describe('長押し選択', () => {
     await expect(
       page.getByRole('status', { name: '2枚を選択中' }),
     ).toBeVisible();
+    expect(
+      await Promise.all(
+        originalImages.map((image) =>
+          image.evaluate((node) => node.isConnected),
+        ),
+      ),
+    ).toEqual(originalImages.map(() => true));
+    expect(reads).toEqual([]);
     await page.mouse.move(10, 20);
     await page.screenshot({ path: '../../work/mobile-dark-selection.png' });
     const panel = page.getByRole('region', { name: '選択した写真の操作' });

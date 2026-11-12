@@ -273,3 +273,25 @@ it('ダークUIで選択を解除し、選択した写真を既存アルバム�
     expect(document.querySelector('.selection-panel')).toBeNull(),
   );
 });
+
+it.each(['/', '/album/秋の小旅行'])(
+  '選択中も写真DOMを維持し、一覧を再取得しない: %s',
+  async (path) => {
+    const user = userEvent.setup();
+    render(<App designPreview initialPath={path} />);
+    const first = await screen.findByRole('button', { name: '湖畔の朝を開く' });
+    const original = Array.from(document.querySelectorAll('.photo-open img'));
+    const calls = vi.mocked(api.list).mock.calls.length;
+    first.focus();
+    await user.keyboard('{Shift>}{Enter}{/Shift}');
+    await user.click(button('山へ続く道を選択'));
+    expect(screen.getByRole('status', { name: '2枚を選択中' })).toBeTruthy();
+    const selected = Array.from(document.querySelectorAll('.photo-open img'));
+    expect(selected).toHaveLength(original.length);
+    original.forEach((image, index) => expect(selected[index]).toBe(image));
+    await user.click(button('選択解除'));
+    const after = Array.from(document.querySelectorAll('.photo-open img'));
+    original.forEach((image, index) => expect(after[index]).toBe(image));
+    expect(api.list).toHaveBeenCalledTimes(calls);
+  },
+);
