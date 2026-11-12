@@ -1,4 +1,4 @@
-/* Issue #44 review: enabled only by the explicit appearancePreview prop. */
+/* Shared appearance settings and light palette; layout stays in mobile-dark.css. */
 .appearance-settings {
   margin-top: 8px;
   padding: 12px 0 0;
@@ -145,15 +145,4 @@ body:has(.mobile-dark[data-appearance='light']) .dialog-title {
 }
 body:has(.mobile-dark[data-appearance='light']) .dialog-description {
   color: #526075;
-}
-.appearance-simulator {
-  position: fixed;
-  z-index: 100;
-  bottom: 0;
-  left: 0;
-  padding: 8px 12px;
-  background: #e4edf8;
-  color: #163e60;
-  border: 1px solid #387dc5;
-  font-size: 12px;
 }

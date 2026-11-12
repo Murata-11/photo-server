@@ -1,10 +1,4 @@
 export type Appearance = 'system' | 'light' | 'dark';
-export type AppearancePreview = {
-  initial: Appearance;
-  system: 'light' | 'dark';
-  storageUnavailable?: boolean;
-};
-
 export function AppearanceSettings({
   value,
   onChange,

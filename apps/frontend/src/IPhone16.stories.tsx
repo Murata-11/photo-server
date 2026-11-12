@@ -1,28 +1,12 @@
-import { useEffect, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { App } from './App';
 import { IPhone16Preview } from './IPhone16Preview';
 import { seed } from './mocks/data';
 import { resetStore } from './mocks/scenarios';
 
-function PhoneApp() {
-  const [system, setSystem] = useState<'light' | 'dark'>(() =>
-    window.matchMedia('(prefers-color-scheme: dark)').matches
-      ? 'dark'
-      : 'light',
-  );
-  useEffect(() => {
-    const query = window.matchMedia('(prefers-color-scheme: dark)');
-    const update = () => setSystem(query.matches ? 'dark' : 'light');
-    update();
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, []);
-  return <App appearancePreview={{ initial: 'system', system }} />;
-}
 function Preview() {
   return new URLSearchParams(window.location.search).has('smartphoneCanvas') ? (
-    <PhoneApp />
+    <App />
   ) : (
     <IPhone16Preview />
   );

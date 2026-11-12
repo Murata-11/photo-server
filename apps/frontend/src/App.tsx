@@ -4,10 +4,8 @@ import { ContinuousPhotoGrid } from './ContinuousPhotoGrid';
 import { BulkTrashDialog } from './BulkTrashDialog';
 import './mobile-dark.css';
 import './appearance.css';
-import {
-  AppearanceSettings,
-  type AppearancePreview,
-} from './AppearanceSettings';
+import { AppearanceSettings } from './AppearanceSettings';
+import { useAppearance } from './useAppearance';
 import { BulkAlbumDialog } from './BulkAlbumDialog';
 import { AlbumEditor } from './AlbumEditor';
 import {
@@ -71,19 +69,16 @@ export function App({
   initialPath = '/',
   initialUploadOpen = false,
   designPreview = true,
-  appearancePreview,
 }: {
   initialPath?: string;
   initialUploadOpen?: boolean;
   designPreview?: boolean;
-  appearancePreview?: AppearancePreview;
 }) {
   return (
     <MemoryRouter initialEntries={[initialPath]}>
       <PhotoApp
         initialUploadOpen={initialUploadOpen}
         designPreview={designPreview}
-        appearancePreview={appearancePreview}
       />
     </MemoryRouter>
   );
@@ -110,19 +105,16 @@ function PhotoDetailRoute({
 function PhotoApp({
   initialUploadOpen,
   designPreview,
-  appearancePreview,
 }: {
   initialUploadOpen: boolean;
   designPreview: boolean;
-  appearancePreview?: AppearancePreview;
 }) {
-  const [appearance, setAppearance] = useState(
-    appearancePreview?.initial ?? 'system',
-  );
-  const resolvedAppearance =
-    appearance === 'system'
-      ? (appearancePreview?.system ?? 'light')
-      : appearance;
+  const {
+    value: appearance,
+    resolved: resolvedAppearance,
+    storageUnavailable,
+    setValue: setAppearance,
+  } = useAppearance();
   const acceptedTypes = ['image/jpeg', 'image/png', 'image/webp'];
   const formatMessage = 'JPEG・PNG・WebPの静止画像を選んでください';
   const [photos, setPhotos] = useState<Photo[]>([]),
@@ -810,12 +802,10 @@ function PhotoApp({
   }
   return (
     <div
-      data-appearance={
-        appearancePreview && designPreview ? resolvedAppearance : undefined
-      }
+      data-appearance={designPreview ? resolvedAppearance : undefined}
       className={`app-shell${designPreview ? ' mobile-dark' : ''}${designPreview && selectionMode ? ' photo-selection-mode' : ''}${designPreview && location.pathname.startsWith('/photo/') ? ' photo-detail-mode' : ''}`}
     >
-      <Toaster position="bottom-center" richColors />
+      <Toaster position="bottom-center" richColors theme={resolvedAppearance} />
       <header className="topbar">
         {designPreview && selectionMode && (
           <div className="selection-count">
@@ -883,14 +873,12 @@ function PhotoApp({
                   <p>{displayName}</p>
                   <NavLink to="/favorites">お気に入り</NavLink>
                   <NavLink to="/trash">ゴミ箱</NavLink>
-                  {appearancePreview && (
-                    <AppearanceSettings
-                      value={appearance}
-                      onChange={setAppearance}
-                      resolved={resolvedAppearance}
-                      storageUnavailable={appearancePreview.storageUnavailable}
-                    />
-                  )}
+                  <AppearanceSettings
+                    value={appearance}
+                    onChange={setAppearance}
+                    resolved={resolvedAppearance}
+                    storageUnavailable={storageUnavailable}
+                  />
                 </nav>
               )}
             </div>
