@@ -1,0 +1,1 @@
+import{t as e}from"./iframe-iDOra-2G.js";e();
