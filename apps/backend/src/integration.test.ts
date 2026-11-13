@@ -1060,3 +1060,326 @@ it('concurrent bulk addition and trash observe a serialized all-or-nothing resul
     ]);
   }
 });
+
+async function deleteAlbum(name: string, user = users[0]) {
+  return request('/api/albums', 'DELETE', JSON.stringify({ name }), user, {
+    'Content-Type': 'application/json',
+  });
+}
+async function waitForAlbumLock(
+  kind: 'FOR UPDATE' | 'FOR KEY SHARE',
+  count = 1,
+) {
+  await expect
+    .poll(
+      async () => {
+        const waiting = await pool.query<{ count: number }>(
+          `SELECT count(*)::int AS count FROM pg_stat_activity
+       WHERE datname=current_database() AND wait_event_type='Lock'
+       AND query=$1`,
+          [`SELECT name FROM albums WHERE name=$1 ${kind}`],
+        );
+        return waiting.rows[0]?.count ?? 0;
+      },
+      { timeout: 5000 },
+    )
+    .toBeGreaterThanOrEqual(count);
+}
+
+describe('album deletion contract (Issue #51)', () => {
+  it('deletes only the album and all its memberships, preserving photos, trash, other albums and every file', async () => {
+    const a = await add(),
+      b = await add(),
+      untouched = await add();
+    for (const name of ['削除する', '残す', '空']) await album(name);
+    for (const photo of [a, b]) {
+      await membership(photo.id, '削除する');
+      await membership(photo.id, '残す');
+    }
+    await membership(untouched.id, '残す');
+    await request(
+      `/api/photos/${b.id}`,
+      'PATCH',
+      '{"favorite":true,"deleted":true}',
+    );
+    const before = (await pool.query('SELECT * FROM photos ORDER BY id')).rows;
+    const files = new Map<string, Buffer>();
+    for (const photo of [a, b, untouched])
+      for (const suffix of ['original', 'jpg']) {
+        const file = `${photo.id}.${suffix}`;
+        files.set(file, await readFile(join(dataDir, file)));
+      }
+    for (const user of users) {
+      const response = await deleteAlbum('削除する', user);
+      expect(response.status).toBe(204);
+      expect(await response.text()).toBe('');
+    }
+    expect((await pool.query('SELECT * FROM photos ORDER BY id')).rows).toEqual(
+      before,
+    );
+    await expect((await request('/api/albums')).json()).resolves.toEqual([
+      '残す',
+      '空',
+    ]);
+    expect(
+      (
+        await pool.query('SELECT * FROM photo_albums WHERE album_name=$1', [
+          '削除する',
+        ])
+      ).rowCount,
+    ).toBe(0);
+    expect(
+      (
+        await pool.query('SELECT * FROM photo_albums WHERE album_name=$1', [
+          '残す',
+        ])
+      ).rowCount,
+    ).toBe(3);
+    for (const [file, content] of files)
+      expect(await readFile(join(dataDir, file))).toEqual(content);
+    for (const photo of [a, b]) {
+      expect((await membership(photo.id, '削除する')).status).toBe(404);
+      expect((await membership(photo.id, '削除する', 'DELETE')).status).toBe(
+        404,
+      );
+    }
+    expect((await bulk([a.id], '削除する')).status).toBe(404);
+    const connection = database(url ?? '');
+    try {
+      const reopened = createApp({ pool: connection, dataDir, origin, users });
+      const response = await reopened.request('/api/albums', {
+        headers: { 'Tailscale-User-Login': users[0] ?? '' },
+      });
+      expect(await response.json()).toEqual(['残す', '空']);
+    } finally {
+      await connection.end();
+    }
+    await album('削除する');
+    expect(
+      (
+        await pool.query('SELECT * FROM photo_albums WHERE album_name=$1', [
+          '削除する',
+        ])
+      ).rowCount,
+    ).toBe(0);
+    expect((await deleteAlbum('空')).status).toBe(204);
+  });
+  it('matches names exactly, including whitespace, slashes, dots and Unicode character boundaries', async () => {
+    for (const name of [
+      '.',
+      '..',
+      '旅行 / ?#%\\😀',
+      ' name ',
+      '   ',
+      '😀'.repeat(100),
+    ]) {
+      // Existing DB names may include whitespace; deletion must never trim them.
+      await pool.query('INSERT INTO albums(name) VALUES($1)', [name]);
+      expect((await deleteAlbum(name)).status).toBe(204);
+      expect(
+        (await pool.query('SELECT * FROM albums WHERE name=$1', [name]))
+          .rowCount,
+      ).toBe(0);
+    }
+    await pool.query("INSERT INTO albums(name) VALUES(' name '),('name')");
+    expect((await deleteAlbum('name')).status).toBe(204);
+    expect(await (await request('/api/albums')).json()).toEqual([' name ']);
+    expect((await deleteAlbum('unknown')).status).toBe(204);
+  });
+  it('rejects malformed input, missing identity, Funnel and CSRF without altering the album', async () => {
+    await album('A');
+    for (const body of [
+      '{',
+      'null',
+      '[]',
+      '{}',
+      '{"name":1}',
+      '{"name":""}',
+      '{"name":"A","extra":true}',
+      JSON.stringify({ name: 'a'.repeat(101) }),
+      JSON.stringify({ name: '😀'.repeat(101) }),
+      JSON.stringify({ name: 'A\0' }),
+    ]) {
+      expect((await request('/api/albums', 'DELETE', body)).status).toBe(400);
+    }
+    const body = '{"name":"A"}';
+    expect((await request('/api/albums', 'DELETE', body, null)).status).toBe(
+      401,
+    );
+    expect(
+      (await request('/api/albums', 'DELETE', body, 'third@example.test'))
+        .status,
+    ).toBe(403);
+    const rejectedHeaders: Record<string, string>[] = [
+      { Origin: 'https://evil.test' },
+      { Origin: '' },
+      { 'X-Photo-Request': '' },
+      { 'Tailscale-Funnel-Request': '?1' },
+    ];
+    for (const extra of rejectedHeaders) {
+      expect(
+        (await request('/api/albums', 'DELETE', body, users[0], extra)).status,
+      ).toBe(403);
+    }
+    expect(await (await request('/api/albums')).json()).toEqual(['A']);
+  });
+  it('rolls back memberships when deleting the album fails and hides internal diagnostics', async () => {
+    const photo = await add();
+    await album('A');
+    await membership(photo.id, 'A');
+    const before = (await pool.query('SELECT * FROM photo_albums')).rows;
+    await pool.query(`CREATE FUNCTION issue51_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'issue51-private-diagnostic'; END; $$;
+      CREATE TRIGGER issue51_fail BEFORE DELETE ON albums FOR EACH ROW EXECUTE FUNCTION issue51_fail()`);
+    try {
+      const response = await deleteAlbum('A');
+      expect(response.status).toBe(500);
+      expect(await response.text()).not.toContain('issue51-private-diagnostic');
+      expect((await pool.query('SELECT * FROM photo_albums')).rows).toEqual(
+        before,
+      );
+      expect(await (await request('/api/albums')).json()).toEqual(['A']);
+    } finally {
+      await pool.query(
+        'DROP TRIGGER issue51_fail ON albums; DROP FUNCTION issue51_fail()',
+      );
+    }
+    expect((await deleteAlbum('A')).status).toBe(204);
+  });
+  it('waits for an in-flight membership transaction before deleting its committed memberships', async () => {
+    const photo = await add();
+    await album('A');
+    const lock = await pool.connect();
+    let pending: Promise<Response> | undefined;
+    try {
+      await lock.query('BEGIN');
+      await lock.query('SELECT id FROM photos WHERE id=$1 FOR UPDATE', [
+        photo.id,
+      ]);
+      await lock.query('SELECT name FROM albums WHERE name=$1 FOR KEY SHARE', [
+        'A',
+      ]);
+      await lock.query("INSERT INTO photo_albums VALUES($1,'A')", [photo.id]);
+      pending = deleteAlbum('A');
+      await waitForAlbumLock('FOR UPDATE');
+      await lock.query('COMMIT');
+      expect((await pending).status).toBe(204);
+    } finally {
+      await lock.query('ROLLBACK');
+      lock.release();
+      await pending;
+    }
+    expect((await pool.query('SELECT * FROM albums')).rowCount).toBe(0);
+    expect((await pool.query('SELECT * FROM photo_albums')).rowCount).toBe(0);
+  });
+  it('individual add/remove and bulk add wait for deletion, then return 404 without recreating the album', async () => {
+    const photo = await add();
+    await album('A');
+    await membership(photo.id, 'A');
+    for (const kind of ['add', 'remove', 'bulk'] as const) {
+      if (kind !== 'add') await album('A');
+      const lock = await pool.connect();
+      let pending: Promise<Response> | undefined;
+      try {
+        await lock.query('BEGIN');
+        await lock.query('SELECT name FROM albums WHERE name=$1 FOR UPDATE', [
+          'A',
+        ]);
+        await lock.query("DELETE FROM photo_albums WHERE album_name='A'");
+        await lock.query("DELETE FROM albums WHERE name='A'");
+        pending = Promise.resolve(
+          kind === 'bulk'
+            ? bulk([photo.id], 'A')
+            : membership(photo.id, 'A', kind === 'add' ? 'PUT' : 'DELETE'),
+        );
+        await waitForAlbumLock('FOR KEY SHARE');
+        await lock.query('COMMIT');
+        expect((await pending).status).toBe(404);
+      } finally {
+        await lock.query('ROLLBACK');
+        lock.release();
+        await pending;
+      }
+      expect((await pool.query('SELECT * FROM albums')).rowCount).toBe(0);
+      expect((await pool.query('SELECT * FROM photo_albums')).rowCount).toBe(0);
+    }
+  });
+  it('serializes duplicate deletions and album recreation without restoring previous memberships', async () => {
+    const photo = await add();
+    await album('A');
+    await membership(photo.id, 'A');
+    expect(
+      (await Promise.all([deleteAlbum('A'), deleteAlbum('A', users[1])])).map(
+        (r) => r.status,
+      ),
+    ).toEqual([204, 204]);
+    const lock = await pool.connect();
+    let pending: Promise<Response> | undefined;
+    try {
+      await lock.query('BEGIN');
+      await lock.query("INSERT INTO albums(name) VALUES('A')");
+      await lock.query('COMMIT');
+      await lock.query('BEGIN');
+      await lock.query("SELECT name FROM albums WHERE name='A' FOR UPDATE");
+      await lock.query("DELETE FROM albums WHERE name='A'");
+      pending = Promise.resolve(request('/api/albums', 'POST', '{"name":"A"}'));
+      await expect
+        .poll(
+          async () =>
+            (
+              await pool.query<{ count: number }>(
+                "SELECT count(*)::int AS count FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE 'INSERT INTO albums(name)%'",
+              )
+            ).rows[0]?.count ?? 0,
+        )
+        .toBeGreaterThan(0);
+      await lock.query('COMMIT');
+      expect((await pending).status).toBe(200);
+    } finally {
+      await lock.query('ROLLBACK');
+      lock.release();
+      await pending;
+    }
+    expect(await (await request('/api/albums')).json()).toEqual(['A']);
+    expect((await pool.query('SELECT * FROM photo_albums')).rowCount).toBe(0);
+  });
+  it('concurrent real membership, trash and restore requests preserve photos and surviving memberships', async () => {
+    const photo = await add();
+    await album('B');
+    await membership(photo.id, 'B');
+    for (const kind of ['add', 'remove', 'bulk', 'trash', 'restore'] as const) {
+      await album('A');
+      await membership(photo.id, 'A');
+      await request(`/api/photos/${photo.id}`, 'PATCH', '{"deleted":false}');
+      const edit =
+        kind === 'add'
+          ? () => membership(photo.id, 'A')
+          : kind === 'remove'
+            ? () => membership(photo.id, 'A', 'DELETE')
+            : kind === 'bulk'
+              ? () => bulk([photo.id], 'A')
+              : kind === 'trash'
+                ? () => trash([photo.id])
+                : () =>
+                    request(
+                      `/api/photos/${photo.id}`,
+                      'PATCH',
+                      '{"deleted":false}',
+                    );
+      const [deleted, edited] = await Promise.all([deleteAlbum('A'), edit()]);
+      expect(deleted.status).toBe(204);
+      expect(
+        kind === 'trash' || kind === 'restore' ? [200, 204] : [204, 404],
+      ).toContain(edited.status);
+      expect(await (await request('/api/albums')).json()).toEqual(['B']);
+      expect(
+        (
+          await pool.query(
+            'SELECT album_name FROM photo_albums WHERE photo_id=$1',
+            [photo.id],
+          )
+        ).rows,
+      ).toEqual([{ album_name: 'B' }]);
+      expect((await pool.query('SELECT id FROM photos')).rowCount).toBe(1);
+    }
+  });
+});

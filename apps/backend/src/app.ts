@@ -105,6 +105,46 @@ export function createApp(settings: Settings) {
     );
     return c.json(result.rows.map((r) => r.name));
   });
+  app.delete('/api/albums', async (c) => {
+    const body = await json(c.req.raw);
+    if (
+      !body ||
+      typeof body !== 'object' ||
+      Array.isArray(body) ||
+      Object.keys(body).join() !== 'name' ||
+      !('name' in body) ||
+      typeof body.name !== 'string' ||
+      !body.name.length ||
+      Array.from(body.name).length > 100 ||
+      body.name.includes('\0')
+    )
+      fail(400, 'アルバム名が不正です');
+    const name = body.name;
+    const client = await settings.pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Membership mutations hold KEY SHARE on this same album row. Take the
+      // exclusive lock before removing memberships, without locking photos:
+      // an edit already in progress finishes first; a later edit sees 404.
+      const album = await client.query(
+        'SELECT name FROM albums WHERE name=$1 FOR UPDATE',
+        [name],
+      );
+      if (album.rowCount) {
+        await client.query('DELETE FROM photo_albums WHERE album_name=$1', [
+          name,
+        ]);
+        await client.query('DELETE FROM albums WHERE name=$1', [name]);
+      }
+      await client.query('COMMIT');
+      return c.body(null, 204);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  });
   app.post('/api/albums', async (c) => {
     const body: unknown = await json(c.req.raw);
     if (
