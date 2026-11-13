@@ -179,3 +179,44 @@ it('一括移動の失敗・応答喪失・再取得失敗シナリオを契約�
     }
   }
 });
+
+it('アルバムだけを削除し、写真・ゴミ箱状態・他所属を保持する（モック契約）', async () => {
+  absoluteFetch();
+  const special = ' . / 旅行?#%・😀 ';
+  await api.createAlbum(special);
+  const first = (await api.list())[0];
+  if (!first) throw new Error('Missing fixture');
+  await api.addAlbum(first.id, special);
+  await api.update(first.id, { deleted: true });
+  const before = await api.list();
+  await api.deleteAlbum(special);
+  await api.deleteAlbum(special);
+  expect(await api.albums()).not.toContain(special);
+  expect(await api.list()).toEqual(
+    before.map((photo) => ({
+      ...photo,
+      albums: photo.albums.filter((name) => name !== special),
+    })),
+  );
+  await expect(api.addAlbum(first.id, special)).rejects.toThrow();
+  await api.createAlbum(special);
+  expect(
+    (await api.list()).every((photo) => !photo.albums.includes(special)),
+  ).toBe(true);
+  await api.deleteAlbum(special);
+  for (const body of [
+    null,
+    {},
+    { name: '' },
+    { name: 'a'.repeat(101) },
+    { name: 1 },
+    { name: '旅', extra: true },
+  ]) {
+    const response = await fetch('/api/albums', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    expect(response.status).toBe(400);
+  }
+});

@@ -25,6 +25,12 @@ export const api = {
   list: () => request<Response<'listPhotos'>>('/api/photos'),
   me: () => request<Response<'getCurrentUser'>>('/api/me'),
   albums: () => request<Response<'listAlbums'>>('/api/albums'),
+  deleteAlbum: (name: string) =>
+    request<undefined>('/api/albums', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    }),
   createAlbum: (name: string) =>
     request<Response<'createAlbum'>>('/api/albums', {
       method: 'POST',

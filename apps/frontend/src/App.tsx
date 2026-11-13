@@ -9,6 +9,7 @@ import { AppearanceSettings } from './AppearanceSettings';
 import { useAppearance } from './useAppearance';
 import { BulkAlbumDialog } from './BulkAlbumDialog';
 import { AlbumEditor } from './AlbumEditor';
+import { DeleteAlbumDialog } from './DeleteAlbumDialog';
 import {
   useEffect,
   useRef,
@@ -127,6 +128,7 @@ function PhotoApp({
     [deletePhoto, setDeletePhoto] = useState<Photo | null>(null),
     [albumModal, setAlbumModal] = useState(false),
     [albumName, setAlbumName] = useState(''),
+    [deletingAlbum, setDeletingAlbum] = useState<string | null>(null),
     [newAlbums, setNewAlbums] = useState<string[]>([]),
     [selected, setSelected] = useState<string[]>([]),
     [selectionMode, setSelectionMode] = useState(false),
@@ -801,6 +803,13 @@ function PhotoApp({
           <ArrowLeft size={16} />
           アルバムに戻る
         </button>
+        {name && newAlbums.includes(name) && (
+          <div className="album-delete-action">
+            <Button variant="ghost" onClick={() => setDeletingAlbum(name)}>
+              <Trash2 size={18} /> アルバムを削除
+            </Button>
+          </div>
+        )}
         {renderGallery(name)}
       </>
     );
@@ -1140,6 +1149,34 @@ function PhotoApp({
           setNewAlbums(nextAlbums);
         }}
       />
+      {deletingAlbum !== null && (
+        <DeleteAlbumDialog
+          key={deletingAlbum}
+          name={deletingAlbum}
+          onClose={() => setDeletingAlbum(null)}
+          onDeleted={() => {
+            endSelection();
+            setPhotos((previous) =>
+              previous.map((photo) => ({
+                ...photo,
+                albums: photo.albums.filter((name) => name !== deletingAlbum),
+              })),
+            );
+            setNewAlbums((previous) =>
+              previous.filter((name) => name !== deletingAlbum),
+            );
+            navigate('/albums');
+          }}
+          onReload={async () => {
+            const [nextPhotos, nextAlbums] = await Promise.all([
+              api.list(),
+              api.albums(),
+            ]);
+            setPhotos(nextPhotos);
+            setNewAlbums(nextAlbums);
+          }}
+        />
+      )}
       <BulkAlbumDialog
         open={bulkAlbumOpen}
         onOpenChange={setBulkAlbumOpen}

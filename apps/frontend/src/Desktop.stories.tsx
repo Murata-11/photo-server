@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { App } from './App';
 import { DesktopPreview } from './DesktopPreview';
 import { seed } from './mocks/data';
-import { resetStore } from './mocks/scenarios';
+import { resetStore, albumDeletionFixture } from './mocks/scenarios';
 
 function Preview() {
   return new URLSearchParams(window.location.search).has('desktopCanvas') ? (
@@ -20,11 +20,11 @@ const meta = {
     docs: {
       description: {
         story:
-          '一覧は表示用画像、写真詳細は元画像のimgを表示する。画像の右クリック・長押しの標準メニューを許可し、ダウンロードボタンは元ファイルを直接ダウンロードする。保存方法を選ぶダイアログは表示しない。',
+          '一覧は表示用画像、写真詳細は元画像のimgを表示する。画像の右クリック・長押しの標準メニューを許可し、ダウンロードボタンは元ファイルを直接ダウンロードする。保存方法を選ぶダイアログは表示しない。アルバム内の削除ボタンから名前と写真保持を確認し、アルバムのみ削除できる。',
       },
     },
   },
-  beforeEach: () =>
+  beforeEach: () => {
     resetStore(
       'normal',
       seed.map((photo, index) => ({
@@ -32,7 +32,11 @@ const meta = {
         id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
         createdAt: photo.date + 'T12:00:00.000Z',
       })),
-    ),
+    );
+    albumDeletionFixture(
+      new URLSearchParams(window.location.search).get('albumDeletion'),
+    );
+  },
 } satisfies Meta<typeof Preview>;
 export default meta;
 type Story = StoryObj<typeof meta>;

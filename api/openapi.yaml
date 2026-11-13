@@ -284,6 +284,34 @@ paths:
         '500':
           description: Internal error
   /api/albums:
+    delete:
+      operationId: deleteAlbum
+      description: アルバムとその全所属（ゴミ箱内写真を含む）だけを同一トランザクションで削除する。写真本体・メタデータ・お気に入り・ゴミ箱状態・他アルバムの所属は保持する。既に不存在でも204。復元不可。同名で再作成されたアルバムは別の作成だが、このAPIは実行時点の名前を対象とするため、結果不明時は自動再送せず現状を再確認する。名前をURLパスに含めず、ドットやスラッシュ等を含む既存名も対象にできる。認証・Origin・X-Photo-Requestの検証は他の更新APIと同じ。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  description: 既存の名前と完全一致で指定する。trimや正規化で別名へ変換しない。
+      responses:
+        '204':
+          description: 削除完了、または既に不存在。応答本文なし。
+        '400':
+          description: Invalid input
+        '401':
+          description: Identity missing
+        '403':
+          description: Not allowed / CSRF
+        '500':
+          description: Internal error（トランザクション内の変更は全件取り消す）
     get:
       operationId: listAlbums
       responses:
