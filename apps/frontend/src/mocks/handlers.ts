@@ -9,6 +9,7 @@ export const handlers = [
   http.put('*/api/photos/albums', scenarios.addPhotosAlbum),
   http.put('*/api/photos/:id/albums', scenarios.addPhotoAlbum),
   http.delete('*/api/photos/:id/albums', scenarios.removePhotoAlbum),
+  http.delete('*/api/albums', scenarios.deleteAlbum),
   http.get('*/api/albums', scenarios.listAlbums),
   http.post('*/api/albums', scenarios.createAlbum),
   http.get('*/api/me', scenarios.getCurrentUser),

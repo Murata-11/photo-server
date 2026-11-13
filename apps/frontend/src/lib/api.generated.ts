@@ -102,7 +102,8 @@ export interface paths {
     get: operations['listAlbums'];
     put?: never;
     post: operations['createAlbum'];
-    delete?: never;
+    /** @description アルバムとその全所属（ゴミ箱内写真を含む）だけを同一トランザクションで削除する。写真本体・メタデータ・お気に入り・ゴミ箱状態・他アルバムの所属は保持する。既に不存在でも204。復元不可。同名で再作成されたアルバムは別の作成だが、このAPIは実行時点の名前を対象とするため、結果不明時は自動再送せず現状を再確認する。名前をURLパスに含めず、ドットやスラッシュ等を含む既存名も対象にできる。認証・Origin・X-Photo-Requestの検証は他の更新APIと同じ。 */
+    delete: operations['deleteAlbum'];
     options?: never;
     head?: never;
     patch?: never;
@@ -902,6 +903,59 @@ export interface operations {
         content?: never;
       };
       /** @description Internal error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteAlbum: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description 既存の名前と完全一致で指定する。trimや正規化で別名へ変換しない。 */
+          name: string;
+        };
+      };
+    };
+    responses: {
+      /** @description 削除完了、または既に不存在。応答本文なし。 */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid input */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Identity missing */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not allowed / CSRF */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Internal error（トランザクション内の変更は全件取り消す） */
       500: {
         headers: {
           [name: string]: unknown;

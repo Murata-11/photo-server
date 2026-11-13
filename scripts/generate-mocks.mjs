@@ -36,6 +36,7 @@ export const api = {
  list: () => request<Response<'listPhotos'>>('/api/photos'),
  me: () => request<Response<'getCurrentUser'>>('/api/me'),
  albums: () => request<Response<'listAlbums'>>('/api/albums'),
+ deleteAlbum: (name:string) => request<undefined>('/api/albums',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})}),
  createAlbum: (name: string) => request<Response<'createAlbum'>>('/api/albums',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})}),
  addAlbum: (id:string, name:string) => request<undefined>('/api/photos/'+encodeURIComponent(id)+'/albums',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})}),
  addPhotosAlbum: (body:operations['addPhotosAlbum']['requestBody']['content']['application/json']) => request<undefined>('/api/photos/albums',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),

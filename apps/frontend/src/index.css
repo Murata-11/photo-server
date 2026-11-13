@@ -1740,3 +1740,43 @@ h1 {
   color: #2563eb;
   text-decoration: underline;
 }
+
+.album-delete-action {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+.album-delete-action button {
+  min-height: 44px;
+}
+.delete-album-name {
+  overflow-wrap: anywhere;
+  font-weight: 600;
+  margin: 16px 0;
+}
+
+.delete-album-actions {
+  flex-wrap: wrap;
+}
+.delete-album-actions button {
+  min-height: 44px;
+}
+body:has(.mobile-dark[data-appearance='dark']) .delete-album-error {
+  color: #fca5a5;
+}
+@media (max-width: 480px) {
+  .delete-album-actions {
+    flex-direction: column;
+  }
+  .delete-album-actions button {
+    width: 100%;
+  }
+}
+.delete-album-dialog #delete-album-cancel {
+  color: inherit;
+  border: 1px solid #80808066;
+  background: transparent;
+}
+.delete-album-dialog #delete-album-cancel:hover {
+  background: #80808022;
+}

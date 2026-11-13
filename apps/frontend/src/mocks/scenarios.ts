@@ -14,6 +14,8 @@ export function resetStore(
   trashMode = 'normal';
   trashCommitted = false;
   uploadMode = 'normal';
+  albumDeletionMode = 'normal';
+  albumDeletionCommitted = false;
   bulkCommitted = false;
   albums =
     next === 'empty'
@@ -21,6 +23,13 @@ export function resetStore(
       : [...new Set(initialPhotos.flatMap((p) => p.albums))];
 }
 export const listPhotos: HttpResponseResolver = async () => {
+  if (albumDeletionMode === 'refresh' && albumDeletionCommitted) {
+    albumDeletionMode = 'normal';
+    return HttpResponse.json(
+      { message: '一覧を更新できませんでした' },
+      { status: 500 },
+    );
+  }
   if (trashMode === 'refresh' && trashCommitted) {
     trashMode = 'normal';
     return HttpResponse.json(
@@ -256,6 +265,51 @@ export const trashPhotos: HttpResponseResolver = async ({ request }) => {
   trashCommitted = true;
   if (trashMode === 'unknown') {
     trashMode = 'normal';
+    return HttpResponse.error();
+  }
+  return new HttpResponse(null, { status: 204 });
+};
+
+// Issue #51の仕様レビュー用。実DBの整合性・認証を検証するものではない。
+let albumDeletionMode: 'normal' | 'saving' | 'error' | 'unknown' | 'refresh' =
+  'normal';
+let albumDeletionCommitted = false;
+export function albumDeletionFixture(value: string | null) {
+  if (
+    value === 'saving' ||
+    value === 'error' ||
+    value === 'unknown' ||
+    value === 'refresh'
+  )
+    albumDeletionMode = value;
+}
+export const deleteAlbum: HttpResponseResolver = async ({ request }) => {
+  await delay(albumDeletionMode === 'saving' ? 'infinite' : 180);
+  const body = (await request.json().catch(() => null)) as {
+    name?: unknown;
+  } | null;
+  if (
+    !body ||
+    Object.keys(body).join() !== 'name' ||
+    typeof body.name !== 'string' ||
+    !body.name.length ||
+    Array.from(body.name).length > 100
+  )
+    return HttpResponse.json({ message: '入力が不正です' }, { status: 400 });
+  if (albumDeletionMode === 'error') {
+    albumDeletionMode = 'normal';
+    return HttpResponse.json(
+      { message: 'アルバムを削除できませんでした' },
+      { status: 500 },
+    );
+  }
+  const name = body.name;
+  albums = albums.filter((album) => album !== name);
+  for (const photo of photos)
+    photo.albums = photo.albums.filter((album) => album !== name);
+  albumDeletionCommitted = true;
+  if (albumDeletionMode === 'unknown') {
+    albumDeletionMode = 'normal';
     return HttpResponse.error();
   }
   return new HttpResponse(null, { status: 204 });
