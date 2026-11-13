@@ -1,12 +1,14 @@
 # Issue #51：アルバム削除の仕様レビュー
 
+本書は仕様PR #52時点の記録。POの承認によりmain `a69c631`へマージ済みで、後続実装の結果は[実装検証記録](issue-51-validation.md)を参照する。
+
 ## 承認と今回の範囲
 
 2026-11-13のチャットでPOが、写真と他所属を保持し、確認後にアルバムだけを削除する方針、およびアルバム復元なしの方針を承認した。[Issue #51](https://github.com/Murata-11/photo-server/issues/51)に記録済み。
 
 基準mainは`f939b64`。本PRはUI・APIの具体的な仕様レビューであり、製品バックエンドの削除処理は未実装。Storyと通常Appで共有するUIを変更するため、通常Appにも削除入口が表示されるが、実APIへの削除はこのPRだけでは成功しない。実装完了・本番反映とは扱わない。仕様PRのマージ・ready・本番反映は別途承認対象。
 
-製品ルールは[product.md](product.md#18-issue-51アルバムの削除仕様レビュー)、HTTP契約は[OpenAPI](../api/openapi.yaml)の`deleteAlbum`を正とする。アルバム名に`/`・`.`・`..`等を含められる既存モデルを考慮して、名前はDELETE `/api/albums`のJSON本文に渡す。生成物は直接編集しない。
+製品ルールは[product.md](product.md#18-issue-51アルバムの削除承認済み仕様)、HTTP契約は[OpenAPI](../api/openapi.yaml)の`deleteAlbum`を正とする。アルバム名に`/`・`.`・`..`等を含められる既存モデルを考慮して、名前はDELETE `/api/albums`のJSON本文に渡す。生成物は直接編集しない。
 
 ## UIレビュー
 

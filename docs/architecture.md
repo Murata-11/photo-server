@@ -38,3 +38,9 @@ OpenAPI `trashPhotos` を実APIに実装する。既存の写真行をID順に `
 保存値はブラウザのlocalStorage `hiyori.appearance`。`src/appearance-bootstrap.js` が保存値・OS設定を評価し、documentの配色・color-scheme・theme-colorを更新する。ViteとStorybookの設定が同じソースをHTMLのheadへ同期スクリプトとして挿入し、アプリの初回描画前に配色を決める。Appからも冪等な初期化として読み込み、`useSyncExternalStore`で選択・適用配色・保存不可状態を購読する。React描画と初期HTMLの判定ロジックを二重管理しない。
 
 OSの変更はMediaQueryList、別タブの保存・削除・clearはlocalStorageのstorageイベントで反映する。sessionStorageや他のキーは無視する。保存不可時はメモリ内の選択を優先して保持し、写真操作は継続する。API・DB・認証・写真ファイル・依存ライブラリは変更しない。
+
+## アルバムの削除（Issue #51）
+
+OpenAPI `deleteAlbum`（DELETE `/api/albums`）を実APIに実装する。JSONの名前を正規化せず完全一致で指定し、アルバム行を`FOR UPDATE`でロックしてから所属行とアルバム行を同一トランザクションで削除する。不在は204。既存の所属編集・一括追加は同じアルバム行を`FOR KEY SHARE`で保持するため、先行編集の確定後に所属を削除し、削除後の編集は404となる。削除側は写真行をロック・変更せず、既存の「写真→アルバム」の取得順との循環待ちを作らない。途中失敗時は全件ロールバックする。
+
+通常・ゴミ箱内の全写真と他所属を保持し、DB構造変更や画像ファイル操作は行わない。同名再作成には以前の所属を引き継がない。現行モデルは名前を識別に使うため、結果不明時に削除を自動再送せず、承認済みUIで現状を再確認する。
