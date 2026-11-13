@@ -1,0 +1,1 @@
+import{t as e}from"./iframe-CYIMTd07.js";e();
